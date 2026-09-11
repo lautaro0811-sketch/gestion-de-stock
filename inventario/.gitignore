@@ -1,0 +1,17 @@
+# Entorno virtual
+venv/
+env/
+ENV/
+
+# Base de datos SQLite local
+*.sqlite3
+db.sqlite3
+
+# Python cache / temporales
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Configuración local de editores (opcional)
+.vscode/
+.idea/
