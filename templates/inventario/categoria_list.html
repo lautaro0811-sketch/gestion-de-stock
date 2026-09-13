@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block title %}Categorías{% endblock %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 24px; align-items: start;">
+    <!-- Formulario de Alta -->
+    <div class="card">
+        <h3 style="margin-bottom: 16px;">Nueva Categoría</h3>
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label>Nombre</label>
+                {{ form.nombre }}
+                {{ form.nombre.errors }}
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Crear Categoría</button>
+        </form>
+    </div>
+
+    <!-- Listado -->
+    <div class="card" style="padding: 0;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Nombre de la Categoría</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cat in categorias %}
+                <tr>
+                    <td><strong>{{ cat.nombre }}</strong></td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td style="text-align: center; color: #64748b; padding: 20px;">No hay categorías registradas.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
