@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+
+{% block title %}Historial de Movimientos{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h2>Historial de Movimientos</h2>
+    <div style="display: flex; gap: 8px;">
+        <a href="{% url 'movimiento_entrada' %}" class="btn btn-success">+ Entrada</a>
+        <a href="{% url 'movimiento_salida' %}" class="btn btn-danger">- Salida</a>
+        <a href="{% url 'movimiento_ajuste' %}" class="btn btn-secondary">⚙ Ajuste</a>
+    </div>
+</div>
+
+<!-- Filtros de auditoría -->
+<div class="card" style="margin-bottom: 20px;">
+    <form method="get" style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
+        <div style="flex: 1; min-width: 180px;">
+            <label class="form-label">Tipo de Movimiento</label>
+            <select name="tipo" class="form-control">
+                <option value="">Todos los tipos</option>
+                {% for valor, etiqueta in tipos %}
+                    <option value="{{ valor }}" {% if tipo_seleccionado == valor %}selected{% endif %}>{{ etiqueta }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="flex: 2; min-width: 200px;">
+            <label class="form-label">Producto</label>
+            <select name="producto" class="form-control">
+                <option value="">Todos los productos</option>
+                {% for p in productos %}
+                    <option value="{{ p.id }}" {% if producto_seleccionado == p.id|stringformat:"i" %}selected{% endif %}>{{ p.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <button type="submit" class="btn btn-primary">Filtrar</button>
+            <a href="{% url 'movimiento_historial' %}" class="btn btn-secondary">Limpiar</a>
+        </div>
+    </form>
+</div>
+
+<!-- Tabla de movimientos -->
+<div class="card table-responsive">
+    <table>
+        <thead>
+            <tr>
+                <th>Fecha y Hora</th>
+                <th>Tipo</th>
+                <th>Producto</th>
+                <th>Cantidad / Dif.</th>
+                <th>Observación / Detalle</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for mov in movimientos %}
+            <tr>
+                <td class="text-muted text-nowrap">
+                    {{ mov.fecha|date:"d/m/Y H:i" }}
+                </td>
+                <td>
+                    {% if mov.tipo == 'ENTRADA' %}
+                        <span class="badge badge-success">Entrada</span>
+                    {% elif mov.tipo == 'SALIDA' %}
+                        <span class="badge badge-danger">Salida</span>
+                    {% else %}
+                        <span class="badge badge-info">Ajuste</span>
+                    {% endif %}
+                </td>
+                <td><strong>{{ mov.producto.nombre }}</strong></td>
+                <td>
+                    {% if mov.tipo == 'ENTRADA' %}
+                        <strong class="text-success">+{{ mov.cantidad }}</strong>
+                    {% elif mov.tipo == 'SALIDA' %}
+                        <strong class="text-danger">-{{ mov.cantidad }}</strong>
+                    {% else %}
+                        <strong>{{ mov.cantidad }} u.</strong>
+                    {% endif %}
+                </td>
+                <td class="text-muted">
+                    {{ mov.observacion|default:"-" }}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" class="empty-row">
+                    No se registraron movimientos con los filtros aplicados.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

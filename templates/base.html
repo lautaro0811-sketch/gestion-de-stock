@@ -1,66 +1,31 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Control de Stock{% endblock %}</title>
-    <style>
-        :root {
-            --primary: #2563eb;
-            --primary-dark: #1d4ed8;
-            --danger: #dc2626;
-            --warning: #f59e0b;
-            --success: #16a34a;
-            --bg: #f8fafc;
-            --card-bg: #ffffff;
-            --text: #1e293b;
-            --border: #e2e8f0;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body { background-color: var(--bg); color: var(--text); padding-bottom: 40px; }
-        
-        header { background: #0f172a; color: white; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; }
-        header a { color: white; text-decoration: none; font-weight: 600; font-size: 1.1rem; }
-        nav a { color: #cbd5e1; margin-left: 18px; text-decoration: none; font-size: 0.95rem; }
-        nav a:hover { color: white; }
-
-        .container { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
-        
-        /* Mensajes */
-        .alert { padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; font-size: 0.95rem; }
-        .alert-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
-        .alert-warning { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
-
-        /* Botones y formularios */
-        .btn { display: inline-block; padding: 8px 14px; border-radius: 6px; font-size: 0.9rem; font-weight: 500; text-decoration: none; border: none; cursor: pointer; }
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-primary:hover { background: var(--primary-dark); }
-        .btn-danger { background: var(--danger); color: white; }
-        .btn-secondary { background: #64748b; color: white; }
-
-        .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        
-        .form-control { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; margin-top: 4px; font-size: 0.95rem; }
-        .form-group { margin-bottom: 16px; }
-
-        /* Tablas */
-        table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); }
-        th { background: #f1f5f9; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
-        
-        /* Badges */
-        .badge { padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
-        .badge-danger { background: #fee2e2; color: #991b1b; }
-        .badge-success { background: #dcfce7; color: #166534; }
-    </style>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
 </head>
 <body>
     <header>
-        <a href="{% url 'producto_list' %}">🧴 Control de Stock</a>
+        <a href="{% url 'producto_list' %}">📦 Control de Stock</a>
         <nav>
             <a href="{% url 'producto_list' %}">Productos</a>
             <a href="{% url 'categoria_list' %}">Categorías</a>
-            <a href="/admin/" target="_blank">Django Admin ↗</a>
+
+            <!-- Menú Desplegable de Movimientos -->
+            <div class="dropdown">
+                <span class="dropdown-toggle">Movimientos ▾</span>
+                <div class="dropdown-menu">
+                    <a href="{% url 'movimiento_entrada' %}">+ Entrada</a>
+                    <a href="{% url 'movimiento_salida' %}">- Salida</a>
+                    <a href="{% url 'movimiento_ajuste' %}">⚙ Ajuste</a>
+                    <a href="{% url 'movimiento_historial' %}">📋 Ver Historial</a>
+                </div>
+            </div>
+
+            <a href="/admin/" target="_blank">Admin ↗</a>
         </nav>
     </header>
 

@@ -1,0 +1,346 @@
+:root {
+    /* Colores Principales / Primarios */
+    --primary: #2563eb;
+    --primary-dark: #1d4ed8;
+
+    /* Semáforo / Estados */
+    --success: #16a34a;
+    --success-dark: #15803d;
+    --warning: #f59e0b;
+    --danger: #dc2626;
+
+    /* Fondos y Superficies */
+    --bg: #f8fafc;
+    --card-bg: #ffffff;
+    --border: #e2e8f0;
+    --table-header-bg: #f1f5f9;
+
+    /* Tipografía y Textos */
+    --text: #1e293b;
+    --text-muted: #64748b;
+
+    /* Barra de Navegación y Dropdown */
+    --nav-bg: #0f172a;
+    --nav-text: #cbd5e1;
+    --dropdown-bg: #1e293b;
+    --dropdown-hover: #334155;
+
+    /* Alertas y Badges - Fondos y Bordes */
+    --alert-success-bg: #dcfce7;
+    --alert-success-text: #166534;
+    --alert-success-border: #bbf7d0;
+
+    --alert-warning-bg: #fef3c7;
+    --alert-warning-text: #92400e;
+    --alert-warning-border: #fde68a;
+
+    --alert-danger-bg: #fee2e2;
+    --alert-danger-text: #991b1b;
+    --alert-danger-border: #fca5a5;
+
+    --badge-info-bg: #e0e7ff;
+    --badge-info-text: #3730a3;
+}
+
+* { 
+    box-sizing: border-box; 
+    margin: 0; 
+    padding: 0; 
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+}
+
+body { 
+    background-color: var(--bg); 
+    color: var(--text); 
+    padding-bottom: 40px; 
+}
+
+/* Header y Navegación */
+header { 
+    background: var(--nav-bg); 
+    color: white; 
+    padding: 14px 24px; 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+}
+
+header a { 
+    color: white; 
+    text-decoration: none; 
+    font-weight: 600; 
+    font-size: 1.1rem; 
+}
+
+nav a { 
+    color: var(--nav-text); 
+    margin-left: 16px; 
+    text-decoration: none; 
+    font-size: 0.95rem; 
+}
+
+nav a:hover { 
+    color: white; 
+}
+
+.container { 
+    max-width: 1100px; 
+    margin: 24px auto; 
+    padding: 0 16px; 
+}
+
+/* Mensajes y Alertas */
+.alert { 
+    padding: 12px 16px; 
+    border-radius: 6px; 
+    margin-bottom: 16px; 
+    font-size: 0.95rem; 
+}
+
+.alert-success { 
+    background: var(--alert-success-bg); 
+    color: var(--alert-success-text); 
+    border: 1px solid var(--alert-success-border); 
+}
+
+.alert-warning { 
+    background: var(--alert-warning-bg); 
+    color: var(--alert-warning-text); 
+    border: 1px solid var(--alert-warning-border); 
+}
+
+.alert-error,
+.alert-danger { 
+    background: var(--alert-danger-bg); 
+    color: var(--alert-danger-text); 
+    border: 1px solid var(--alert-danger-border); 
+}
+
+/* Botones */
+.btn { 
+    display: inline-block; 
+    padding: 8px 14px; 
+    border-radius: 6px; 
+    font-size: 0.9rem; 
+    font-weight: 500; 
+    text-decoration: none; 
+    border: none; 
+    cursor: pointer; 
+}
+
+.btn-primary { 
+    background: var(--primary); 
+    color: white; 
+}
+
+.btn-primary:hover { 
+    background: var(--primary-dark); 
+}
+
+.btn-danger { 
+    background: var(--danger); 
+    color: white; 
+}
+
+.btn-secondary { 
+    background: var(--text-muted); 
+    color: white; 
+}
+
+.btn-success {
+    background-color: var(--success);
+    color: white;
+}
+
+.btn-success:hover {
+    background-color: var(--success-dark);
+}
+
+/* Tarjetas y Contenedores */
+.card { 
+    background: var(--card-bg); 
+    border: 1px solid var(--border); 
+    border-radius: 8px; 
+    padding: 20px; 
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); 
+}
+
+/* Formularios */
+.form-control { 
+    width: 100%; 
+    padding: 8px 12px; 
+    border: 1px solid var(--border); 
+    border-radius: 6px; 
+    margin-top: 4px; 
+    font-size: 0.95rem; 
+}
+
+.form-group { 
+    margin-bottom: 16px; 
+}
+
+.form-card-container {
+    max-width: 550px;
+    margin: 20px auto;
+}
+
+.form-label {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.field-error {
+    color: var(--danger);
+    font-size: 0.85rem;
+    margin-top: 4px;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 24px;
+}
+
+.mb-4 {
+    margin-bottom: 20px;
+}
+
+/* Tablas */
+table { 
+    width: 100%; 
+    border-collapse: collapse; 
+    margin-top: 16px; 
+}
+
+th, td { 
+    padding: 12px; 
+    text-align: left; 
+    border-bottom: 1px solid var(--border); 
+}
+
+th { 
+    background: var(--table-header-bg); 
+    font-size: 0.85rem; 
+    text-transform: uppercase; 
+    letter-spacing: 0.05em; 
+}
+
+.table-responsive {
+    padding: 0;
+    overflow-x: auto;
+}
+
+.empty-row {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 30px;
+}
+
+/* Badges / Etiquetas */
+.badge { 
+    padding: 4px 8px; 
+    border-radius: 12px; 
+    font-size: 0.75rem; 
+    font-weight: 600; 
+}
+
+.badge-danger { 
+    background: var(--alert-danger-bg); 
+    color: var(--alert-danger-text); 
+}
+
+.badge-success { 
+    background: var(--alert-success-bg); 
+    color: var(--alert-success-text); 
+}
+
+.badge-info { 
+    background: var(--badge-info-bg); 
+    color: var(--badge-info-text); 
+}
+
+/* Utilidades de texto */
+.text-muted {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.text-nowrap {
+    white-space: nowrap;
+}
+
+.text-success {
+    color: var(--success);
+}
+
+.text-danger {
+    color: var(--danger);
+}
+
+/* ==========================================================================
+   Menú Desplegable (Dropdown)
+   ========================================================================== */
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.dropdown-toggle {
+    color: var(--nav-text);
+    text-decoration: none;
+    font-size: 0.95rem;
+    cursor: pointer;
+    margin-left: 16px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 0;
+}
+
+.dropdown-toggle:hover {
+    color: white;
+}
+
+.dropdown-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background-color: var(--dropdown-bg);
+    min-width: 170px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    padding: 6px 0;
+    margin-top: 0;
+    z-index: 1000;
+}
+
+/* Puente invisible para no perder el hover */
+.dropdown-menu::before {
+    content: "";
+    position: absolute;
+    top: -10px;
+    left: 0;
+    width: 100%;
+    height: 10px;
+}
+
+.dropdown-menu a {
+    color: var(--nav-text);
+    padding: 8px 16px;
+    text-decoration: none;
+    display: block;
+    margin-left: 0;
+    font-size: 0.9rem;
+}
+
+.dropdown-menu a:hover {
+    background-color: var(--dropdown-hover);
+    color: white;
+}
+
+/* Mostrar menú al hacer hover */
+.dropdown:hover .dropdown-menu {
+    display: block;
+}
