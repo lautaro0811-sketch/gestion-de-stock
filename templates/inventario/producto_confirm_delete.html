@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block title %}Desactivar Producto{% endblock %}
+
+{% block content %}
+<div style="max-width: 500px; margin: 40px auto;">
+    <div class="card" style="text-align: center;">
+        <h2 style="color: var(--danger); margin-bottom: 16px;">¿Desactivar producto?</h2>
+        <p style="margin-bottom: 20px;">
+            Vas a dar de baja <strong>"{{ producto.nombre }}"</strong>.<br>
+            <small style="color: #64748b;">No se borrará de la base de datos para no perder su historial de movimientos, pero ya no aparecerá en el listado activo.</small>
+        </p>
+
+        <form method="post">
+            {% csrf_token %}
+            <div style="display: flex; justify-content: center; gap: 12px;">
+                <a href="{% url 'producto_list' %}" class="btn btn-secondary">Cancelar</a>
+                <button type="submit" class="btn btn-danger">Sí, desactivar</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

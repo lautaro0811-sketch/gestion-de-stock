@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<div style="max-width: 600px; margin: 0 auto;">
+    <div class="card">
+        <h2 style="margin-bottom: 20px;">{{ titulo }}</h2>
+        
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="form-group">
+                <label>Nombre del producto</label>
+                {{ form.nombre }}
+                {{ form.nombre.errors }}
+            </div>
+
+            <div class="form-group">
+                <label>Categoría</label>
+                {{ form.categoria }}
+                {{ form.categoria.errors }}
+            </div>
+
+            <div class="form-group">
+                <label>Stock Mínimo (aviso de reposición)</label>
+                {{ form.stock_minimo }}
+                {{ form.stock_minimo.errors }}
+            </div>
+
+            <div class="form-group">
+                <label>Descripción</label>
+                {{ form.descripcion }}
+                {{ form.descripcion.errors }}
+            </div>
+
+            {% if producto %}
+            <div class="alert alert-warning" style="font-size: 0.85rem;">
+                ℹ El <strong>stock actual ({{ producto.stock_actual }} u.)</strong> no se edita directamente desde aquí. Se actualiza mediante movimientos de Entrada, Salida o Ajuste.
+            </div>
+            {% endif %}
+
+            <div style="display: flex; justify-content: space-between; margin-top: 24px;">
+                <a href="{% url 'producto_list' %}" class="btn btn-secondary">Cancelar</a>
+                <button type="submit" class="btn btn-primary">Guardar Producto</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
