@@ -16,4 +16,5 @@ urlpatterns = [
         name="producto_desactivar",
     ),
     path("categorias/", views.categoria_list_crear, name="categoria_list"),
+    
 ]
