@@ -38,3 +38,45 @@ class ProductoForm(forms.ModelForm):
                 attrs={"class": "form-control", "min": "0"}
             ),
         }
+
+class MovimientoCantidadForm(forms.Form):
+    producto = forms.ModelChoiceField(
+        queryset = Producto.objects.filter(activo=True),
+        label = "Producto",
+        widget=forms.Select(attrs={"class" : "form-control"}),
+    )
+    cantidad = forms.IntegerField(
+        min_value= 1,
+        label = "Cantidad",
+        widget=forms.NumberInput(attrs={"class": "form-control", "min": "1"})
+    )
+    observacion = forms.CharField(
+        required=False,
+        label="Observación (opcional)",
+        widget=forms.Textarea(attrs={
+            "class": "form-control",
+            "rows": 3,
+            "placeholder": "Detalle del movimiento (remito, proveedor, motivo, etc.)"
+        })
+    )
+
+class MovimientoAjusteForm(forms.Form):
+    producto = forms.ModelChoiceField(
+        queryset = Producto.objects.filter(activo=True),
+        label = "Producto",
+        widget=forms.Select(attrs={"class" : "form-control"}),
+    )
+    stock_real = forms.IntegerField(
+        min_value = 0,
+        label = "Stock",
+        widget=forms.NumberInput(attrs={"class": "form-control", "min": "0"})
+    )
+    observacion = forms.CharField(
+        required=False,
+        label="Observación (opcional)",
+        widget=forms.Textarea(attrs={
+            "class": "form-control",
+            "rows": 3,
+            "placeholder": "Motivo de ajuste (rotura, pérdida, conteo anual.)"
+        })
+    )

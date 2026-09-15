@@ -1,9 +1,16 @@
 from django.contrib import messages
+from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 
-from .forms import CategoriaForm, ProductoForm
-from .models import Categoria, Producto
+from .forms import (
+    CategoriaForm,
+    MovimientoAjusteForm,
+    MovimientoCantidadForm,
+    ProductoForm,
+)
+from .models import Categoria, Movimiento, Producto
+from .services import registrar_ajuste, registrar_entrada, registrar_salida
 
 
 def producto_list(request):
@@ -126,3 +133,104 @@ def categoria_list_crear(request):
         "inventario/categoria_list.html",
         {"form": form, "categorias": categorias},
     )
+
+def movimiento_entrada(request):
+    """Registro de movimientos de entrada."""
+    if request.method == "POST":
+        form = MovimientoCantidadForm(request.POST)
+        if form.is_valid():
+            producto = form.cleaned_data["producto"]
+            cantidad = form.cleaned_data["cantidad"]
+            observacion = form.cleaned_data["observacion"]
+
+            try:
+                registrar_entrada(producto.id, cantidad, observacion)
+                messages.success(request, f"Se ingresaron {cantidad} u. de '{producto.nombre}'.")
+                return redirect("producto_list")
+            except ValidationError as e:
+                messages.error(request, e.message)
+    else:
+        form = MovimientoCantidadForm()
+
+    context = {
+        "form": form,
+        "titulo": "Registrar Entrada de Stock",
+        "tipo": "entrada",
+    }
+    return render(request, "inventario/movimiento_form.html", context)
+
+def movimiento_salida(request):
+    """Registro de movimientos de salida (egreso de stock)."""
+    if request.method == "POST":
+        form = MovimientoCantidadForm(request.POST)
+        if form.is_valid():
+            producto = form.cleaned_data["producto"]
+            cantidad = form.cleaned_data["cantidad"]
+            observacion = form.cleaned_data["observacion"]
+
+            try:
+                registrar_salida(producto.id, cantidad, observacion)
+                messages.success(request, f"Se registraron {cantidad} u. de salida para '{producto.nombre}'.")
+                return redirect("producto_list")
+            except ValidationError as e:
+                messages.error(request, e.message)
+    else:
+        form = MovimientoCantidadForm()
+
+    context = {
+        "form": form,
+        "titulo": "Registrar Salida de Stock",
+        "tipo": "salida",
+    }
+    return render(request, "inventario/movimiento_form.html", context)
+
+
+def movimiento_ajuste(request):
+    """Registro de ajustes de stock por conteo físico."""
+    if request.method == "POST":
+        form = MovimientoAjusteForm(request.POST)
+        if form.is_valid():
+            producto = form.cleaned_data["producto"]
+            stock_real = form.cleaned_data["stock_real"]
+            observacion = form.cleaned_data["observacion"]
+
+            try:
+                registrar_ajuste(producto.id, stock_real, observacion)
+                messages.success(request, f"Stock de '{producto.nombre}' ajustado a {stock_real} u.")
+                return redirect("producto_list")
+            except ValidationError as e:
+                messages.error(request, e.message)
+    else:
+        form = MovimientoAjusteForm()
+
+    context = {
+        "form": form,
+        "titulo": "Ajuste Físico de Stock",
+        "tipo": "ajuste",
+    }
+    return render(request, "inventario/movimiento_form.html", context)
+
+
+def movimiento_historial(request):
+    """Listado auditable de todos los movimientos registrados."""
+    tipo = request.GET.get("tipo", "").strip()
+    producto_id = request.GET.get("producto", "").strip()
+
+    # Optimizamos trayendo el producto en la misma consulta
+    movimientos = Movimiento.objects.select_related("producto").order_by("-fecha")
+
+    if tipo:
+        movimientos = movimientos.filter(tipo=tipo)
+    if producto_id:
+        movimientos = movimientos.filter(producto_id=producto_id)
+
+    productos = Producto.objects.all().order_by("nombre")
+
+    context = {
+        "movimientos": movimientos,
+        "productos": productos,
+        "tipos": Movimiento.TipoMovimiento.choices,
+        "tipo_seleccionado": tipo,
+        "producto_seleccionado": producto_id,
+    }
+    return render(request, "inventario/movimiento_historial.html", context)
