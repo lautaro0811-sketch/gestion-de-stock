@@ -1,11 +1,12 @@
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.utils import timezone
 
 from .models import Movimiento, Producto
 
 
 @transaction.atomic
-def registrar_entrada(producto_id: int, cantidad: int, observacion: str = "") -> Movimiento:
+def registrar_entrada(producto_id: int, cantidad: int, observacion: str = "", fecha=None) -> Movimiento:
     """Registra un ingreso de stock incrementando el saldo actual."""
     if cantidad <= 0:
         raise ValidationError("La cantidad a ingresar debe ser mayor a cero.")
@@ -18,6 +19,7 @@ def registrar_entrada(producto_id: int, cantidad: int, observacion: str = "") ->
         tipo=Movimiento.TipoMovimiento.ENTRADA,
         cantidad=cantidad,
         observacion=observacion,
+        fecha=fecha or timezone.now(),
     )
 
     # 2. Actualizar stock actual del producto
@@ -28,7 +30,7 @@ def registrar_entrada(producto_id: int, cantidad: int, observacion: str = "") ->
 
 
 @transaction.atomic
-def registrar_salida(producto_id: int, cantidad: int, observacion: str = "") -> Movimiento:
+def registrar_salida(producto_id: int, cantidad: int, observacion: str = "", fecha=None) -> Movimiento:
     """Registra una salida de stock previa validación de existencia suficiente."""
     if cantidad <= 0:
         raise ValidationError("La cantidad a egresar debe ser mayor a cero.")
@@ -47,6 +49,7 @@ def registrar_salida(producto_id: int, cantidad: int, observacion: str = "") -> 
         tipo=Movimiento.TipoMovimiento.SALIDA,
         cantidad=cantidad,
         observacion=observacion,
+        fecha=fecha or timezone.now(),
     )
 
     # 2. Actualizar stock actual del producto
@@ -57,7 +60,7 @@ def registrar_salida(producto_id: int, cantidad: int, observacion: str = "") -> 
 
 
 @transaction.atomic
-def registrar_ajuste(producto_id: int, stock_real: int, observacion: str = "") -> Movimiento:
+def registrar_ajuste(producto_id: int, stock_real: int, observacion: str = "",fecha=None) -> Movimiento:
     """Ajusta el stock al valor real verificado en conteo físico."""
     if stock_real < 0:
         raise ValidationError("El stock real contado no puede ser negativo.")
@@ -80,6 +83,7 @@ def registrar_ajuste(producto_id: int, stock_real: int, observacion: str = "") -
         tipo=Movimiento.TipoMovimiento.AJUSTE,
         cantidad=diferencia,
         observacion=obs_final,
+        fecha=fecha or timezone.now(),
     )
 
     # 2. Asignar el nuevo valor real de stock

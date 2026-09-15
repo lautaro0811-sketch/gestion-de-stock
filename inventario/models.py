@@ -1,5 +1,6 @@
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.utils import timezone
 
 
 class Categoria(models.Model):
@@ -59,7 +60,7 @@ class Movimiento(models.Model):
         verbose_name="Cantidad",
         help_text="Cantidad de unidades involucradas en el movimiento.",
         )
-    fecha = models.DateTimeField(auto_now_add=True, verbose_name="Fecha y hora")
+    fecha = models.DateTimeField(default=timezone.now)
     observacion = models.CharField(max_length=255, blank=True, null=True, verbose_name="Observación",)
 
     class Meta:

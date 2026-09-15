@@ -1,82 +1,59 @@
 from django import forms
-from .models import Categoria, Producto
+from django.utils import timezone
+
+from .models import Categoria, Movimiento, Producto
+
+
+class ProductoForm(forms.ModelForm):
+    class Meta:
+        model = Producto
+        fields = ["nombre", "descripcion", "categoria", "stock_actual", "stock_minimo"]
+        widgets = {
+            "nombre": forms.TextInput(attrs={"class": "form-control", "placeholder": "Nombre del producto"}),
+            "descripcion": forms.Textarea(attrs={"class": "form-control", "rows": 3, "placeholder": "Descripción..."}),
+            "categoria": forms.Select(attrs={"class": "form-control"}),
+            "stock_actual": forms.NumberInput(attrs={"class": "form-control", "min": 0}),
+            "stock_minimo": forms.NumberInput(attrs={"class": "form-control", "min": 0}),
+        }
+
 
 class CategoriaForm(forms.ModelForm):
     class Meta:
         model = Categoria
         fields = ["nombre"]
         widgets = {
-            "nombre": forms.TextInput(
-                attrs={
-                    "class": "form-control",
-                    "placeholder": "Ej. Desinfectantes",
-                }
-            ),
+            "nombre": forms.TextInput(attrs={"class": "form-control", "placeholder": "Nombre de la categoría"}),
         }
 
-class ProductoForm(forms.ModelForm):
-    class Meta:
-        model = Producto
-        # Excluimos stock_actual para respetar la regla de negocio
-        fields = ["nombre", "categoria", "descripcion", "stock_minimo"]
-        widgets = {
-            "nombre": forms.TextInput(
-                attrs={
-                    "class": "form-control",
-                    "placeholder": "Ej. Lavandina 1L",  
-                }
-            ),
-            "categoria": forms.Select(attrs={"class": "form-control"}),
-            "descripcion": forms.Textarea(
-                attrs={
-                    "class": "form-control",
-                    "rows": 3,
-                    "placeholder": "Detalles del producto (opcional)",
-                }
-            ),
-            "stock_minimo": forms.NumberInput(
-                attrs={"class": "form-control", "min": "0"}
-            ),
-        }
 
-class MovimientoCantidadForm(forms.Form):
+class MovimientoUnificadoForm(forms.Form):
     producto = forms.ModelChoiceField(
-        queryset = Producto.objects.filter(activo=True),
-        label = "Producto",
-        widget=forms.Select(attrs={"class" : "form-control"}),
+        queryset=Producto.objects.filter(activo=True).order_by("nombre"),
+        empty_label="Seleccione un producto...",
+        widget=forms.Select(attrs={"class": "form-control"}),
+    )
+    fecha = forms.DateField(
+        initial=timezone.now().date,
+        widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+    )
+    tipo = forms.ChoiceField(
+        choices=Movimiento.TipoMovimiento.choices,
+        widget=forms.Select(attrs={"class": "form-control"}),
     )
     cantidad = forms.IntegerField(
-        min_value= 1,
-        label = "Cantidad",
-        widget=forms.NumberInput(attrs={"class": "form-control", "min": "1"})
+        min_value=0,
+        widget=forms.NumberInput(
+            attrs={"placeholder": "Cantidad o Stock Real", "class": "form-control"}
+        ),
+        help_text="Para Ajuste Físico, ingrese el stock real verificado.",
     )
     observacion = forms.CharField(
         required=False,
-        label="Observación (opcional)",
-        widget=forms.Textarea(attrs={
-            "class": "form-control",
-            "rows": 3,
-            "placeholder": "Detalle del movimiento (remito, proveedor, motivo, etc.)"
-        })
-    )
-
-class MovimientoAjusteForm(forms.Form):
-    producto = forms.ModelChoiceField(
-        queryset = Producto.objects.filter(activo=True),
-        label = "Producto",
-        widget=forms.Select(attrs={"class" : "form-control"}),
-    )
-    stock_real = forms.IntegerField(
-        min_value = 0,
-        label = "Stock",
-        widget=forms.NumberInput(attrs={"class": "form-control", "min": "0"})
-    )
-    observacion = forms.CharField(
-        required=False,
-        label="Observación (opcional)",
-        widget=forms.Textarea(attrs={
-            "class": "form-control",
-            "rows": 3,
-            "placeholder": "Motivo de ajuste (rotura, pérdida, conteo anual.)"
-        })
+        widget=forms.Textarea(
+            attrs={
+                "placeholder": "Observaciones opcionales...",
+                "rows": 3,
+                "class": "form-control",
+            }
+        ),
     )

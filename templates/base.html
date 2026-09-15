@@ -4,39 +4,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Control de Stock{% endblock %}</title>
+    <title>{% block title %}Control de Inventario{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
 </head>
 <body>
-    <header>
-        <a href="{% url 'producto_list' %}">📦 Control de Stock</a>
-        <nav>
-            <a href="{% url 'producto_list' %}">Productos</a>
-            <a href="{% url 'categoria_list' %}">Categorías</a>
-
-            <!-- Menú Desplegable de Movimientos -->
-            <div class="dropdown">
-                <span class="dropdown-toggle">Movimientos ▾</span>
-                <div class="dropdown-menu">
-                    <a href="{% url 'movimiento_entrada' %}">+ Entrada</a>
-                    <a href="{% url 'movimiento_salida' %}">- Salida</a>
-                    <a href="{% url 'movimiento_ajuste' %}">⚙ Ajuste</a>
-                    <a href="{% url 'movimiento_historial' %}">📋 Ver Historial</a>
-                </div>
+    <div class="app-layout">
+        <!-- Sidebar Fijo Lateral -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                📦 CONTROL STOCK
             </div>
+            <nav class="sidebar-nav">
+                <a href="{% url 'producto_list' %}" class="sidebar-link {% if request.resolver_match.url_name == 'producto_list' %}active{% endif %}">
+                    📊 Inventario
+                </a>
+                <a href="{% url 'producto_crear' %}" class="sidebar-link {% if request.resolver_match.url_name == 'producto_crear' %}active{% endif %}">
+                    ➕ Nuevo Producto
+                </a>
+                <a href="{% url 'movimiento_crear' %}" class="sidebar-link {% if request.resolver_match.url_name == 'movimiento_crear' %}active{% endif %}">
+                    🔄 Registrar Movimiento
+                </a>
+                <a href="{% url 'movimiento_historial' %}" class="sidebar-link {% if request.resolver_match.url_name == 'movimiento_historial' %}active{% endif %}">
+                    📋 Historial
+                </a>
+                <a href="{% url 'categoria_list' %}" class="sidebar-link {% if request.resolver_match.url_name == 'categoria_list' %}active{% endif %}">
+                    🏷️ Categorías
+                </a>
+            </nav>
+        </aside>
 
-            <a href="/admin/" target="_blank">Admin ↗</a>
-        </nav>
-    </header>
+        <!-- Contenedor Principal -->
+        <div class="main-wrapper">
+            <header class="main-topbar">
+                <h1>{% block topbar_title %}Panel de Inventario{% endblock %}</h1>
+            </header>
 
-    <main class="container">
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-            {% endfor %}
-        {% endif %}
+            <main class="main-content">
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
 
-        {% block content %}{% endblock %}
-    </main>
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
 </body>
 </html>
