@@ -2,11 +2,18 @@ from datetime import datetime
 
 from django.contrib import messages
 from django.core.exceptions import ValidationError
-from django.db.models import Q
+from django.core.paginator import Paginator
+from django.db import transaction
+from django.db.models import F, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from .forms import CategoriaForm, MovimientoUnificadoForm, ProductoForm
+from .forms import (
+    CategoriaForm,
+    MovimientoUnificadoForm,
+    ProductoCrearForm,
+    ProductoEditarForm,
+)
 from .models import Categoria, Movimiento, Producto
 from .services import registrar_ajuste, registrar_entrada, registrar_salida
 
@@ -27,16 +34,22 @@ def producto_list(request):
     if categoria_id:
         productos = productos.filter(categoria_id=categoria_id)
 
+    if solo_stock_bajo:
+        productos = productos.filter(stock_actual__lte=F("stock_minimo"))
+
     categorias = Categoria.objects.all()
 
-    if solo_stock_bajo:
-        productos = [p for p in productos if p.stock_bajo]
+    # Paginación (15 productos por página)
+    paginator = Paginator(productos, 15)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
 
     return render(
         request,
         "inventario/producto_list.html",
         {
-            "productos": productos,
+            "productos": page_obj,
+            "page_obj": page_obj,
             "categorias": categorias,
             "query": query,
             "categoria_seleccionada": categoria_id,
@@ -45,15 +58,30 @@ def producto_list(request):
     )
 
 
+
+@transaction.atomic
 def producto_crear(request):
     if request.method == "POST":
-        form = ProductoForm(request.POST)
+        form = ProductoCrearForm(request.POST)
         if form.is_valid():
-            producto = form.save()
+            producto = form.save(commit=False)
+            producto.stock_actual = 0  # Garantizamos que nazca en 0
+            producto.save()
+
+            stock_inicial = form.cleaned_data.get("stock_inicial") or 0
+            if stock_inicial > 0:
+                usuario = request.user if request.user.is_authenticated else None
+                registrar_entrada(
+                    producto_id=producto.id,
+                    cantidad=stock_inicial,
+                    observacion="Stock inicial de apertura de producto",
+                    usuario=usuario,
+                )
+
             messages.success(request, f"Producto '{producto.nombre}' creado exitosamente.")
             return redirect("producto_list")
     else:
-        form = ProductoForm()
+        form = ProductoCrearForm()
 
     return render(request, "inventario/producto_form.html", {"form": form, "titulo": "Nuevo Producto"})
 
@@ -61,24 +89,30 @@ def producto_crear(request):
 def producto_editar(request, pk):
     producto = get_object_or_404(Producto, pk=pk, activo=True)
     if request.method == "POST":
-        form = ProductoForm(request.POST, instance=producto)
+        form = ProductoEditarForm(request.POST, instance=producto)
         if form.is_valid():
             form.save()
             messages.success(request, f"Producto '{producto.nombre}' actualizado.")
             return redirect("producto_list")
     else:
-        form = ProductoForm(instance=producto)
+        form = ProductoEditarForm(instance=producto)
 
-    return render(request, "inventario/producto_form.html", {"form": form, "titulo": "Editar Producto"})
+    return render(
+        request,
+        "inventario/producto_form.html",
+        {"form": form, "titulo": "Editar Producto", "producto": producto},
+    )
 
 
 def producto_desactivar(request, pk):
     producto = get_object_or_404(Producto, pk=pk, activo=True)
     if request.method == "POST":
         producto.activo = False
-        producto.save(update_fields=["activo"])
-        messages.success(request, f"Producto '{producto.nombre}' dado de baja.")
-    return redirect("producto_list")
+        producto.save(update_fields=["activo", "fecha_actualizacion"])
+        messages.success(request, f"Producto '{producto.nombre}' dado de baja correctamente.")
+        return redirect("producto_list")
+
+    return render(request, "inventario/producto_confirm_delete.html", {"producto": producto})
 
 
 # --- CATEGORÍAS ---
@@ -118,22 +152,43 @@ def movimiento_crear(request):
             fecha_completa = timezone.make_aware(
                 datetime.combine(fecha_date, hora_actual)
             )
+            usuario = request.user if request.user.is_authenticated else None
 
             try:
                 if tipo == "ENTRADA":
-                    registrar_entrada(producto.id, cantidad, observacion, fecha=fecha_completa)
+                    registrar_entrada(
+                        producto.id,
+                        cantidad,
+                        observacion,
+                        fecha=fecha_completa,
+                        usuario=usuario,
+                    )
                     messages.success(request, f"Entrada registrada: +{cantidad} u. de '{producto.nombre}'.")
                 elif tipo == "SALIDA":
-                    registrar_salida(producto.id, cantidad, observacion, fecha=fecha_completa)
+                    registrar_salida(
+                        producto.id,
+                        cantidad,
+                        observacion,
+                        fecha=fecha_completa,
+                        usuario=usuario,
+                    )
                     messages.success(request, f"Salida registrada: -{cantidad} u. de '{producto.nombre}'.")
                 elif tipo == "AJUSTE":
-                    registrar_ajuste(producto.id, cantidad, observacion, fecha=fecha_completa)
+                    registrar_ajuste(
+                        producto.id,
+                        cantidad,
+                        observacion,
+                        fecha=fecha_completa,
+                        usuario=usuario,
+                    )
                     messages.success(request, f"Stock de '{producto.nombre}' ajustado a {cantidad} u.")
 
                 return redirect("movimiento_historial")
 
             except ValidationError as e:
-                messages.error(request, e.message)
+                err_msg = e.message if hasattr(e, "message") else ", ".join(e.messages)
+                messages.error(request, err_msg)
+                form.add_error(None, err_msg)
     else:
         initial_data = {}
         if producto_id_param:
@@ -147,7 +202,7 @@ def movimiento_historial(request):
     tipo_filtro = request.GET.get("tipo", "").strip()
     producto_filtro = request.GET.get("producto", "").strip()
 
-    movimientos = Movimiento.objects.select_related("producto").all()
+    movimientos = Movimiento.objects.select_related("producto__categoria", "created_by").all()
 
     if tipo_filtro:
         movimientos = movimientos.filter(tipo=tipo_filtro)
@@ -156,11 +211,17 @@ def movimiento_historial(request):
 
     productos = Producto.objects.all().order_by("nombre")
 
+    # Paginación (20 movimientos por página)
+    paginator = Paginator(movimientos, 20)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
     return render(
         request,
         "inventario/movimiento_historial.html",
         {
-            "movimientos": movimientos,
+            "movimientos": page_obj,
+            "page_obj": page_obj,
             "productos": productos,
             "tipos": Movimiento.TipoMovimiento.choices,
             "tipo_seleccionado": tipo_filtro,

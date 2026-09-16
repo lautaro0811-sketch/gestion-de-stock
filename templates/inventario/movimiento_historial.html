@@ -1,64 +1,111 @@
 {% extends 'base.html' %}
 
-{% block title %}Registro de Movimientos{% endblock %}
-{% block topbar_title %}Registro de Movimientos{% endblock %}
+{% block title %}Historial de Movimientos{% endblock %}
+{% block topbar_title %}Auditoría y Movimientos de Stock{% endblock %}
 
 {% block content %}
 <div class="card">
-    <h2 class="card-title" style="margin-bottom: 20px;">Nuevo Movimiento</h2>
+    <div class="card-header-flex">
+        <h2 class="card-title">Registro Histórico</h2>
+        <div class="action-bar">
+            <a href="{% url 'movimiento_crear' %}" class="btn btn-primary">+ Registrar Movimiento</a>
+        </div>
+    </div>
 
-    <form method="post" novalidate>
-        {% csrf_token %}
-
-        <div class="form-grid-row">
-            <div>
-                <label class="form-label">Producto *</label>
-                {{ form.producto }}
-                {% for error in form.producto.errors %}
-                    <div class="field-error">{{ error }}</div>
+    <!-- Barra de Filtros -->
+    <form method="get" class="filter-form">
+        <div class="filter-input-main">
+            <label class="form-label">Producto</label>
+            <select name="producto" class="form-control">
+                <option value="">Todos los productos</option>
+                {% for p in productos %}
+                    <option value="{{ p.id }}" {% if producto_seleccionado == p.id|stringformat:"i" %}selected{% endif %}>
+                        {{ p.nombre }}
+                    </option>
                 {% endfor %}
-            </div>
-
-            <div>
-                <label class="form-label">Fecha *</label>
-                {{ form.fecha }}
-                {% for error in form.fecha.errors %}
-                    <div class="field-error">{{ error }}</div>
-                {% endfor %}
-            </div>
-
-            <div>
-                <label class="form-label">Tipo de Movimiento *</label>
-                {{ form.tipo }}
-                {% for error in form.tipo.errors %}
-                    <div class="field-error">{{ error }}</div>
-                {% endfor %}
-            </div>
-
-            <div>
-                <label class="form-label">Cantidad / Stock Real *</label>
-                {{ form.cantidad }}
-                {% for error in form.cantidad.errors %}
-                    <div class="field-error">{{ error }}</div>
-                {% endfor %}
-            </div>
+            </select>
         </div>
 
-        <div class="form-full-row">
-            <label class="form-label">Observaciones</label>
-            {{ form.observacion }}
-            {% if form.observacion.help_text %}
-                <div class="form-desc">{{ form.observacion.help_text }}</div>
+        <div class="filter-input-sec">
+            <label class="form-label">Tipo de Movimiento</label>
+            <select name="tipo" class="form-control">
+                <option value="">Todos los tipos</option>
+                {% for valor, etiqueta in tipos %}
+                    <option value="{{ valor }}" {% if tipo_seleccionado == valor %}selected{% endif %}>
+                        {{ etiqueta }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <button type="submit" class="btn btn-primary">Filtrar</button>
+            {% if tipo_seleccionado or producto_seleccionado %}
+                <a href="{% url 'movimiento_historial' %}" class="btn btn-secondary">Limpiar</a>
             {% endif %}
-            {% for error in form.observacion.errors %}
-                <div class="field-error">{{ error }}</div>
-            {% endfor %}
-        </div>
-
-        <div style="display: flex; gap: 10px; margin-top: 24px;">
-            <button type="submit" class="btn btn-success">Guardar Movimiento</button>
-            <a href="{% url 'movimiento_crear' %}" class="btn btn-secondary">Limpiar</a>
         </div>
     </form>
+
+    <!-- Tabla de Auditoría -->
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>Fecha y Hora</th>
+                    <th>Tipo</th>
+                    <th>Producto</th>
+                    <th>Cantidad</th>
+                    <th>Stock (Previo → Saldo)</th>
+                    <th>Observación / Detalle</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in movimientos %}
+                <tr>
+                    <td class="text-nowrap">{{ m.fecha|date:"d/m/Y H:i" }}</td>
+                    <td>
+                        {% if m.tipo == 'ENTRADA' %}
+                            <span class="badge badge-success">Entrada</span>
+                        {% elif m.tipo == 'SALIDA' %}
+                            <span class="badge badge-danger">Salida</span>
+                        {% elif m.tipo == 'AJUSTE' %}
+                            <span class="badge badge-info">Ajuste</span>
+                        {% else %}
+                            <span class="badge">{{ m.get_tipo_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <strong>{{ m.producto.nombre }}</strong>
+                        {% if m.producto.categoria %}
+                            <div class="form-desc">{{ m.producto.categoria.nombre }}</div>
+                        {% endif %}
+                    </td>
+                    <td class="text-nowrap">
+                        {% if m.tipo == 'ENTRADA' %}
+                            <strong style="color: var(--color-success);">+{{ m.cantidad }} u.</strong>
+                        {% elif m.tipo == 'SALIDA' %}
+                            <strong style="color: var(--color-danger);">-{{ m.cantidad }} u.</strong>
+                        {% else %}
+                            <strong>{{ m.cantidad }} u.</strong>
+                        {% endif %}
+                    </td>
+                    <td class="text-nowrap">
+                        <span class="text-muted">{{ m.stock_anterior }}</span>
+                        <span style="color: var(--color-text-muted); margin: 0 4px;">→</span>
+                        <strong>{{ m.stock_posterior }} u.</strong>
+                    </td>
+                    <td>{{ m.observacion|default:"—" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="empty-row">No se encontraron movimientos registrados con los criterios seleccionados.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Paginación -->
+    {% include 'inventario/includes/pagination.html' %}
 </div>
 {% endblock %}

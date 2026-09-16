@@ -4,17 +4,34 @@ from django.utils import timezone
 from .models import Categoria, Movimiento, Producto
 
 
-class ProductoForm(forms.ModelForm):
+class ProductoBaseForm(forms.ModelForm):
     class Meta:
         model = Producto
-        fields = ["nombre", "descripcion", "categoria", "stock_actual", "stock_minimo"]
+        fields = ["nombre", "categoria", "stock_minimo", "descripcion"]
         widgets = {
             "nombre": forms.TextInput(attrs={"class": "form-control", "placeholder": "Nombre del producto"}),
-            "descripcion": forms.Textarea(attrs={"class": "form-control", "rows": 3, "placeholder": "Descripción..."}),
             "categoria": forms.Select(attrs={"class": "form-control"}),
-            "stock_actual": forms.NumberInput(attrs={"class": "form-control", "min": 0}),
             "stock_minimo": forms.NumberInput(attrs={"class": "form-control", "min": 0}),
+            "descripcion": forms.Textarea(attrs={"class": "form-control", "rows": 3, "placeholder": "Descripción..."}),
         }
+
+
+class ProductoCrearForm(ProductoBaseForm):
+    stock_inicial = forms.IntegerField(
+        min_value=0,
+        initial=0,
+        required=False,
+        widget=forms.NumberInput(attrs={"class": "form-control", "min": 0}),
+        help_text="Stock de apertura con el que ingresa el producto al sistema (opcional).",
+    )
+
+
+class ProductoEditarForm(ProductoBaseForm):
+    pass
+
+
+# Alias de retrocompatibilidad si fuera necesario
+ProductoForm = ProductoCrearForm
 
 
 class CategoriaForm(forms.ModelForm):
@@ -57,3 +74,32 @@ class MovimientoUnificadoForm(forms.Form):
             }
         ),
     )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        tipo = cleaned_data.get("tipo")
+        producto = cleaned_data.get("producto")
+        cantidad = cleaned_data.get("cantidad")
+
+        if tipo in [Movimiento.TipoMovimiento.ENTRADA, Movimiento.TipoMovimiento.SALIDA]:
+            if cantidad is not None and cantidad <= 0:
+                self.add_error(
+                    "cantidad",
+                    f"Para movimientos de {tipo.lower().capitalize()}, la cantidad debe ser mayor a cero.",
+                )
+
+        if tipo == Movimiento.TipoMovimiento.SALIDA and producto and cantidad:
+            if cantidad > producto.stock_actual:
+                self.add_error(
+                    "cantidad",
+                    f"Stock insuficiente para '{producto.nombre}'. Hay {producto.stock_actual} u. disponibles y se solicitaron {cantidad} u.",
+                )
+
+        if tipo == Movimiento.TipoMovimiento.AJUSTE and producto and cantidad is not None:
+            if cantidad == producto.stock_actual:
+                self.add_error(
+                    "cantidad",
+                    f"El stock ingresado ({cantidad}) es idéntico al actual ({producto.stock_actual} u.); no hay ajuste que registrar.",
+                )
+
+        return cleaned_data

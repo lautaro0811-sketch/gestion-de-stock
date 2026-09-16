@@ -20,6 +20,9 @@
 
     <!-- Barra de Filtro y Búsqueda -->
     <form method="get" class="filter-form">
+        {% if solo_stock_bajo %}
+            <input type="hidden" name="stock_bajo" value="1">
+        {% endif %}
         <div class="filter-input-main">
             <label class="form-label">Buscar</label>
             <input type="text" name="q" value="{{ query }}" placeholder="Nombre o descripción..." class="form-control">
@@ -73,8 +76,9 @@
                             <span class="badge badge-success">Normal</span>
                         {% endif %}
                     </td>
-                    <td>
+                    <td class="text-nowrap">
                         <a href="{% url 'producto_editar' p.id %}" class="btn btn-action btn-sm">Ver / Editar</a>
+                        <a href="{% url 'producto_desactivar' p.id %}" class="btn btn-secondary btn-sm" style="color: var(--color-danger); margin-left: 4px;" title="Dar de baja producto">Desactivar</a>
                     </td>
                 </tr>
                 {% empty %}
@@ -85,5 +89,8 @@
             </tbody>
         </table>
     </div>
+
+    <!-- Paginación -->
+    {% include 'inventario/includes/pagination.html' %}
 </div>
 {% endblock %}

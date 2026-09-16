@@ -28,6 +28,17 @@
                 {{ form.stock_minimo.errors }}
             </div>
 
+            {% if form.stock_inicial %}
+            <div class="form-group">
+                <label>Stock Inicial (opcional)</label>
+                {{ form.stock_inicial }}
+                {% if form.stock_inicial.help_text %}
+                    <div class="form-desc" style="font-size: 0.85rem; color: #64748b; margin-top: 4px;">{{ form.stock_inicial.help_text }}</div>
+                {% endif %}
+                {{ form.stock_inicial.errors }}
+            </div>
+            {% endif %}
+
             <div class="form-group">
                 <label>Descripción</label>
                 {{ form.descripcion }}

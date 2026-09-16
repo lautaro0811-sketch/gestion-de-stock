@@ -331,3 +331,71 @@ tr.row-normal     { background-color: var(--color-row-normal-bg); }
 .form-full-row {
     margin-bottom: 16px;
 }
+
+/* ==========================================================================
+   Componente: Paginación
+   ========================================================================== */
+.pagination-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.pagination-info {
+    font-size: 0.88rem;
+    color: var(--color-text-muted);
+}
+
+.pagination-nav {
+    display: flex;
+}
+
+.pagination {
+    display: inline-flex;
+    list-style: none;
+    gap: 6px;
+    align-items: center;
+}
+
+.page-item {
+    display: inline-block;
+}
+
+.page-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    color: var(--color-text-main);
+    background-color: var(--color-card-bg);
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.page-link:hover {
+    border-color: var(--color-btn-primary);
+    color: var(--color-btn-primary);
+    background-color: #f8fafc;
+}
+
+.page-item.active .page-link {
+    background-color: var(--color-btn-primary);
+    color: #ffffff;
+    border-color: var(--color-btn-primary);
+    cursor: default;
+}
+
+.page-item.disabled .page-link {
+    color: var(--color-text-muted);
+    opacity: 0.5;
+    pointer-events: none;
+    cursor: not-allowed;
+    background-color: #f1f5f9;
+}
