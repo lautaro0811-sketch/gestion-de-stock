@@ -1,44 +1,64 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ titulo }}{% endblock %}
+{% block title %}Registro de Movimientos{% endblock %}
+{% block topbar_title %}Registro de Movimientos{% endblock %}
 
 {% block content %}
-<div class="form-card-container">
-    <div class="card">
-        <h2 class="mb-4">{{ titulo }}</h2>
+<div class="card">
+    <h2 class="card-title" style="margin-bottom: 20px;">Nuevo Movimiento</h2>
 
-        <form method="post" novalidate>
-            {% csrf_token %}
+    <form method="post" novalidate>
+        {% csrf_token %}
 
-            {% for field in form %}
-                <div class="form-group">
-                    <label for="{{ field.id_for_label }}" class="form-label">
-                        {{ field.label }}
-                    </label>
-                    {{ field }}
-                    {% if field.help_text %}
-                        <small class="text-muted">{{ field.help_text }}</small>
-                    {% endif %}
-                    {% for error in field.errors %}
-                        <div class="field-error">
-                            {{ error }}
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endfor %}
-
-            <div class="form-actions">
-                <a href="{% url 'producto_list' %}" class="btn btn-secondary">Cancelar</a>
-                
-                {% if tipo == 'entrada' %}
-                    <button type="submit" class="btn btn-success">Confirmar Entrada</button>
-                {% elif tipo == 'salida' %}
-                    <button type="submit" class="btn btn-danger">Confirmar Salida</button>
-                {% else %}
-                    <button type="submit" class="btn btn-primary">Aplicar Ajuste</button>
-                {% endif %}
+        <div class="form-grid-row">
+            <div>
+                <label class="form-label">Producto *</label>
+                {{ form.producto }}
+                {% for error in form.producto.errors %}
+                    <div class="field-error">{{ error }}</div>
+                {% endfor %}
             </div>
-        </form>
-    </div>
+
+            <div>
+                <label class="form-label">Fecha *</label>
+                {{ form.fecha }}
+                {% for error in form.fecha.errors %}
+                    <div class="field-error">{{ error }}</div>
+                {% endfor %}
+            </div>
+
+            <div>
+                <label class="form-label">Tipo de Movimiento *</label>
+                {{ form.tipo }}
+                {% for error in form.tipo.errors %}
+                    <div class="field-error">{{ error }}</div>
+                {% endfor %}
+            </div>
+
+            <div>
+                <label class="form-label">Cantidad / Valor *</label>
+                {{ form.cantidad }}
+                {% for error in form.cantidad.errors %}
+                    <div class="field-error">{{ error }}</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="form-full-row">
+            <label class="form-label">Observaciones</label>
+            {{ form.observacion }}
+            {% if form.observacion.help_text %}
+                <small class="text-muted">{{ form.observacion.help_text }}</small>
+            {% endif %}
+            {% for error in form.observacion.errors %}
+                <div class="field-error">{{ error }}</div>
+            {% endfor %}
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 24px;">
+            <button type="submit" class="btn btn-success">Guardar Movimiento</button>
+            <a href="{% url 'movimiento_crear' %}" class="btn btn-secondary">Limpiar</a>
+        </div>
+    </form>
 </div>
 {% endblock %}

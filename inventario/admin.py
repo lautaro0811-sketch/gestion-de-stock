@@ -30,8 +30,41 @@ class ProductoAdmin(admin.ModelAdmin):
 
 @admin.register(Movimiento)
 class MovimientoAdmin(admin.ModelAdmin):
-    list_display = ("id", "producto", "tipo", "cantidad", "fecha")
-    list_filter = ("tipo", "fecha")
-    search_fields = ("producto__nombre", "observacion")
-    # El historial no debe editarse ni modificarse arbitrariamente
-    readonly_fields = ("fecha",)
+    list_display = (
+        "id",
+        "fecha",
+        "producto",
+        "tipo",
+        "cantidad",
+        "stock_anterior",
+        "stock_posterior",
+        "created_by",
+    )
+    list_filter = ("tipo", "fecha", "created_by")
+    search_fields = ("producto__nombre", "observacion", "created_by__username")
+    # Todos los campos son de sólo lectura en caso de inspección
+    readonly_fields = (
+        "id",
+        "fecha",
+        "producto",
+        "tipo",
+        "cantidad",
+        "stock_anterior",
+        "stock_posterior",
+        "created_by",
+        "observacion",
+    )
+    # Deshabilitar acciones masivas de eliminación
+    actions = None
+
+    def has_add_permission(self, request):
+        """Los movimientos solo se generan a través de servicios de inventario."""
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        """Los movimientos son registros inmutables de auditoría."""
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        """No se permite eliminar registros históricos de movimientos."""
+        return False

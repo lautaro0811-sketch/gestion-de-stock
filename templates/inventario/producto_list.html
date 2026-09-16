@@ -1,22 +1,34 @@
 {% extends 'base.html' %}
 
 {% block title %}Inventario de Productos{% endblock %}
+{% block topbar_title %}Control de Inventario{% endblock %}
 
 {% block content %}
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-    <h2>Productos en Inventario</h2>
-    <a href="{% url 'producto_crear' %}" class="btn btn-primary">+ Nuevo Producto</a>
-</div>
+<div class="card">
+    <div class="card-header-flex">
+        <h2 class="card-title">Stock Actual</h2>
+        
+        <div class="action-bar">
+            <a href="{% url 'movimiento_crear' %}" class="btn btn-primary">Registrar Operación</a>
+            <a href="{% url 'producto_crear' %}" class="btn btn-success">+ Nuevo Producto</a>
+            <a href="{% url 'producto_list' %}?stock_bajo=1" class="btn btn-warning">Solo Alertas</a>
+            {% if solo_stock_bajo or query or categoria_seleccionada %}
+                <a href="{% url 'producto_list' %}" class="btn btn-secondary">Ver Todos</a>
+            {% endif %}
+        </div>
+    </div>
 
-<!-- Filtros de búsqueda -->
-<div class="card" style="margin-bottom: 20px;">
-    <form method="get" style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
-        <div style="flex: 2; min-width: 200px;">
-            <label style="font-size: 0.85rem; font-weight: 600;">Buscar</label>
+    <!-- Barra de Filtro y Búsqueda -->
+    <form method="get" class="filter-form">
+        {% if solo_stock_bajo %}
+            <input type="hidden" name="stock_bajo" value="1">
+        {% endif %}
+        <div class="filter-input-main">
+            <label class="form-label">Buscar</label>
             <input type="text" name="q" value="{{ query }}" placeholder="Nombre o descripción..." class="form-control">
         </div>
-        <div style="flex: 1; min-width: 150px;">
-            <label style="font-size: 0.85rem; font-weight: 600;">Categoría</label>
+        <div class="filter-input-sec">
+            <label class="form-label">Categoría</label>
             <select name="categoria" class="form-control">
                 <option value="">Todas</option>
                 {% for c in categorias %}
@@ -24,60 +36,61 @@
                 {% endfor %}
             </select>
         </div>
-        <div style="display: flex; align-items: center; gap: 6px; padding-bottom: 8px;">
-            <input type="checkbox" name="stock_bajo" value="1" id="stock_bajo" {% if solo_stock_bajo %}checked{% endif %}>
-            <label for="stock_bajo" style="font-size: 0.9rem; cursor: pointer;">Solo stock crítico</label>
-        </div>
         <div>
             <button type="submit" class="btn btn-primary">Filtrar</button>
             <a href="{% url 'producto_list' %}" class="btn btn-secondary">Limpiar</a>
         </div>
     </form>
-</div>
 
-<!-- Tabla de productos -->
-<div class="card" style="padding: 0; overflow-x: auto;">
-    <table>
-        <thead>
-            <tr>
-                <th>Producto</th>
-                <th>Categoría</th>
-                <th>Stock Actual</th>
-                <th>Mínimo</th>
-                <th>Estado</th>
-                <th style="text-align: right;">Acciones</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for prod in productos %}
-            <tr {% if prod.stock_bajo %}style="background-color: #fff7ed;"{% endif %}>
-                <td>
-                    <strong>{{ prod.nombre }}</strong>
-                    {% if prod.descripcion %}<br><small style="color: #64748b;">{{ prod.descripcion }}</small>{% endif %}
-                </td>
-                <td>{{ prod.categoria.nombre }}</td>
-                <td><strong>{{ prod.stock_actual }}</strong> u.</td>
-                <td>{{ prod.stock_minimo }} u.</td>
-                <td>
-                    {% if prod.stock_bajo %}
-                        <span class="badge badge-danger">Stock Bajo</span>
-                    {% else %}
-                        <span class="badge badge-success">OK</span>
-                    {% endif %}
-                </td>
-                <td style="text-align: right;">
-                    <a href="{% url 'producto_editar' prod.pk %}" class="btn" style="color: var(--primary); padding: 4px 8px;">Editar</a>
-                    <a href="{% url 'producto_desactivar' prod.pk %}" class="btn" style="color: var(--danger); padding: 4px 8px;">Desactivar</a>
-                </td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="6" style="text-align: center; color: #64748b; padding: 30px;">
-                    No se encontraron productos con los filtros aplicados.
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <!-- Tabla con filas coloreadas según stock -->
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Categoría</th>
+                    <th>Stock Mín.</th>
+                    <th>Stock Actual</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in productos %}
+                <tr class="{% if p.stock_actual == 0 %}row-sin-stock{% elif p.stock_bajo %}row-stock-bajo{% else %}row-normal{% endif %}">
+                    <td>
+                        <strong>{{ p.nombre }}</strong>
+                        {% if p.descripcion %}
+                            <div class="form-desc">{{ p.descripcion }}</div>
+                        {% endif %}
+                    </td>
+                    <td>{{ p.categoria.nombre|default:"Sin categoría" }}</td>
+                    <td>{{ p.stock_minimo }}</td>
+                    <td><strong>{{ p.stock_actual }} u.</strong></td>
+                    <td>
+                        {% if p.stock_actual == 0 %}
+                            <span class="badge badge-danger">Sin Stock</span>
+                        {% elif p.stock_bajo %}
+                            <span class="badge badge-warning">Stock Bajo</span>
+                        {% else %}
+                            <span class="badge badge-success">Normal</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-nowrap">
+                        <a href="{% url 'producto_editar' p.id %}" class="btn btn-action btn-sm">Ver / Editar</a>
+                        <a href="{% url 'producto_desactivar' p.id %}" class="btn btn-secondary btn-sm" style="color: var(--color-danger); margin-left: 4px;" title="Dar de baja producto">Desactivar</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="empty-row">No se encontraron productos registrados.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Paginación -->
+    {% include 'inventario/includes/pagination.html' %}
 </div>
 {% endblock %}
