@@ -1,5 +1,7 @@
 {% extends 'base.html' %}
 
+{% load inventario_tags %}
+
 {% block title %}Inventario de Productos{% endblock %}
 {% block topbar_title %}Control de Inventario{% endblock %}
 
@@ -7,7 +9,7 @@
 <div class="card">
     <div class="card-header-flex">
         <h2 class="card-title">Stock Actual</h2>
-        
+
         <div class="action-bar">
             <a href="{% url 'movimiento_crear' %}" class="btn btn-primary">Registrar Operación</a>
             <a href="{% url 'producto_crear' %}" class="btn btn-success">+ Nuevo Producto</a>
@@ -47,10 +49,34 @@
         <table>
             <thead>
                 <tr>
-                    <th>Nombre</th>
-                    <th>Categoría</th>
-                    <th>Stock Mín.</th>
-                    <th>Stock Actual</th>
+                    <th>
+                        {% if orden == 'nombre' and dir == 'asc' %}
+                            <a href="?{% param_replace orden='nombre' dir='desc' %}" class="sortable active-sort">Nombre ↑</a>
+                        {% else %}
+                            <a href="?{% param_replace orden='nombre' dir='asc' %}" class="sortable{% if orden == 'nombre' %} active-sort{% endif %}">Nombre {% if orden == 'nombre' %}↓{% endif %}</a>
+                        {% endif %}
+                    </th>
+                    <th>
+                        {% if orden == 'categoria' and dir == 'asc' %}
+                            <a href="?{% param_replace orden='categoria' dir='desc' %}" class="sortable active-sort">Categoría ↑</a>
+                        {% else %}
+                            <a href="?{% param_replace orden='categoria' dir='asc' %}" class="sortable{% if orden == 'categoria' %} active-sort{% endif %}">Categoría {% if orden == 'categoria' %}↓{% endif %}</a>
+                        {% endif %}
+                    </th>
+                    <th>
+                        {% if orden == 'stock_minimo' and dir == 'asc' %}
+                            <a href="?{% param_replace orden='stock_minimo' dir='desc' %}" class="sortable active-sort">Stock Mín. ↑</a>
+                        {% else %}
+                            <a href="?{% param_replace orden='stock_minimo' dir='asc' %}" class="sortable{% if orden == 'stock_minimo' %} active-sort{% endif %}">Stock Mín. {% if orden == 'stock_minimo' %}↓{% endif %}</a>
+                        {% endif %}
+                    </th>
+                    <th>
+                        {% if orden == 'stock_actual' and dir == 'asc' %}
+                            <a href="?{% param_replace orden='stock_actual' dir='desc' %}" class="sortable active-sort">Stock Actual ↑</a>
+                        {% else %}
+                            <a href="?{% param_replace orden='stock_actual' dir='asc' %}" class="sortable{% if orden == 'stock_actual' %} active-sort{% endif %}">Stock Actual {% if orden == 'stock_actual' %}↓{% endif %}</a>
+                        {% endif %}
+                    </th>
                     <th>Estado</th>
                     <th>Acciones</th>
                 </tr>
@@ -78,7 +104,7 @@
                     </td>
                     <td class="text-nowrap">
                         <a href="{% url 'producto_editar' p.id %}" class="btn btn-action btn-sm">Ver / Editar</a>
-                        <a href="{% url 'producto_desactivar' p.id %}" class="btn btn-secondary btn-sm" style="color: var(--color-danger); margin-left: 4px;" title="Dar de baja producto">Desactivar</a>
+                        <a href="{% url 'producto_desactivar' p.id %}" class="btn btn-secondary btn-sm btn-desactivar" title="Dar de baja producto">Desactivar</a>
                     </td>
                 </tr>
                 {% empty %}
