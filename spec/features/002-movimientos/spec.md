@@ -16,7 +16,7 @@ _Condiciones verificables que deben cumplirse para dar la feature por terminada.
 
 - [x] El formulario unificado permite seleccionar Entradas, Salidas y Ajustes físicos[cite: 2].
 - [x] El sistema rechaza cualquier salida que intente dejar el stock disponible en valores negativos[cite: 2].
-- [x] Toda operación se registra en el historial con fecha, tipo de movimiento, cantidad y observaciones opcionales[cite: 2].
+- [x] Toda operación se registra en el historial con fecha, tipo de movimiento, cantidad, observaciones opcionales y auditoría extendida: registro de saldos instantáneos (`stock_anterior` y `stock_posterior`) y usuario responsable (`created_by`) en caso de estar autenticado.
 - [x] Se permite cargar movimientos con fechas retroactivas o personalizadas editando el campo de fecha[cite: 2].
 - [x] La tabla de historial incluye filtros funcionales por tipo de operación y por producto[cite: 2].
 

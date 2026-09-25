@@ -30,7 +30,7 @@ Sistema de gestión de inventario de productos de limpieza para un cliente parti
   - `requirements.txt` — Dependencias del proyecto fijadas para reproducibilidad.
 
 ## Convenciones
-- Lógica de stock centralizada: Todo cambio en el stock debe pasar por `inventario/services.py` usando `transaction.atomic()` y `select_for_update()` para asegurar la integridad de los datos.
+- Lógica de stock centralizada: Todo cambio en el stock debe pasar por `inventario/services.py` usando `transaction.atomic()` y `select_for_update()` para asegurar la integridad de los datos. *(Nota: en SQLite `select_for_update()` no bloquea filas a nivel de registro; la consistencia se garantiza con `transaction.atomic()`. Se mantiene la convención para una futura migración a PostgreSQL).*
 - Baja de productos: Utilizar siempre una baja lógica cambiando `activo = False` para no romper el historial de movimientos asociado al producto.
 - Manejo de estilos: Toda la paleta de colores y variables estructurales debe ir en el archivo CSS centralizado, promoviendo un diseño limpio y moderno.
 - Notificaciones: Usar el framework `messages` de Django para capturar y mostrar validaciones y confirmaciones de acciones en la interfaz de usuario.

@@ -6,7 +6,7 @@ Delegar toda la lógica de validación e impacto de stock a una capa de servicio
 
 ## Implementación
 
-1. `inventario/services.py` — Creación de las funciones core (`registrar_entrada`, `registrar_salida`, `registrar_ajuste`) aseguradas con `transaction.atomic()`[cite: 2].
+1. `inventario/services.py` — Creación de las funciones core (`registrar_entrada`, `registrar_salida`, `registrar_ajuste`) aseguradas con `transaction.atomic()`, calculando y registrando `stock_anterior`, `stock_posterior` y asociando el usuario operador `created_by`.
 2. `inventario/forms.py` — Construcción de `MovimientoUnificadoForm` para capturar todos los datos en una sola pantalla[cite: 3].
 3. `inventario/views.py` — Controladores `movimiento_crear` (conecta form y servicios) y `movimiento_historial` (gestiona la auditoría y filtros)[cite: 2, 3].
 4. `templates/inventario/` — Desarrollo de las plantillas `movimiento_form.html` y `movimiento_historial.html` utilizando diseño de cuadrícula y etiquetas de colores[cite: 2, 3].
@@ -15,6 +15,7 @@ Delegar toda la lógica de validación e impacto de stock a una capa de servicio
 ## Decisiones
 
 - **Lógica centralizada en services.py:** Garantiza el uso de bloqueos de fila de base de datos (`select_for_update()`); se descartó procesar la lógica en las vistas para evitar corromper datos ante peticiones concurrentes[cite: 2].
+- **Auditoría instantánea e inmutable:** Se registran `stock_anterior`, `stock_posterior` y `created_by` en cada movimiento para posibilitar auditorías inmediatas sin recalcular el historial. La inmutabilidad se blinda en `save()`, `delete()` y a nivel de QuerySet y panel Admin.
 - **Formulario Unificado:** Se optó por una sola vista de registro para agilizar la carga operativa del usuario y limpiar la barra de navegación, en lugar de tener tres formularios y URLs separadas[cite: 2].
 - **Ajuste por stock real:** Para los ajustes físicos, el operador ingresa lo que cuenta visualmente en estantería en lugar de calcular diferencias mentalmente; el backend calcula el delta exacto[cite: 2].
 
