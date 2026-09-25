@@ -412,3 +412,12 @@ tr.row-normal     { background-color: var(--color-row-normal-bg); }
 .text-danger { color: var(--color-danger); }
 .text-success { color: var(--color-success); }
 .text-muted-aux { color: var(--color-text-muted); margin: 0 4px; }
+
+/* Utility class for table link styling */
+.table-link {
+    color: var(--color-btn-primary);
+    text-decoration: none;
+}
+.table-link:hover {
+    text-decoration: underline;
+}
