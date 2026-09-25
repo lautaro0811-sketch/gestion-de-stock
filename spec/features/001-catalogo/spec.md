@@ -15,7 +15,7 @@ Es el módulo fundacional del sistema. Sin un catálogo de productos estructurad
 _Condiciones verificables que deben cumplirse para dar la feature por terminada. Redacta cada una de forma que se pueda comprobar con un sí/no. Marca `[x]` al cumplirse._
 
 - [x] El sistema permite registrar categorías y productos garantizando que los nombres sean únicos para evitar duplicidad[cite: 2].
-- [x] Al crear o editar un producto, el campo de stock actual está protegido (excluido) para impedir que el usuario lo modifique manualmente. En el formulario de alta se admite un campo opcional `stock_inicial` como atajo operativo válido, el cual genera automáticamente un movimiento auditable de tipo `ENTRADA` a través de los servicios de stock para preservar la trazabilidad.
+- [x] Al crear o editar un producto, el campo de stock actual está protegido (excluido) para impedir que el usuario lo modifique manualmente[cite: 2].
 - [x] El listado principal muestra únicamente los productos activos y señala visualmente aquellos artículos cuyo stock actual está por debajo o igual al stock mínimo configurado[cite: 2].
 - [x] Existe un buscador que permite filtrar la tabla de productos por nombre o descripción, además de un filtro para mostrar exclusivamente el stock en estado crítico[cite: 2].
 - [x] La acción de "eliminar" un producto en realidad ejecuta una baja lógica (cambia el campo `activo` a falso), garantizando que el artículo desaparezca del catálogo sin borrar físicamente el registro de la base de datos[cite: 2].
@@ -24,5 +24,5 @@ _Condiciones verificables que deben cumplirse para dar la feature por terminada.
 
 _Lo que esta feature NO incluye, para evitar que crezca. Si algo se difiere, enlaza a dónde (roadmap/backlog)._
 
-- La edición manual directa del saldo de inventario (excepto el atajo de `stock_inicial` durante el alta que delega en un movimiento de ENTRADA). El registro operativo general de Entradas, Salidas y Ajustes de stock pertenece a la feature `002-movimientos`.
+- La alteración de los saldos de inventario. El registro operativo de Entradas, Salidas y Ajustes de stock se implementará en la feature `002-movimientos`[cite: 2].
 - La vista de auditoría cronológica (historial de movimientos), que también pertenece al módulo de movimientos[cite: 2].

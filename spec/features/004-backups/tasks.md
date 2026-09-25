@@ -1,4 +1,4 @@
-# 004 · Backups de Base de Datos — Tareas
+# 003 · Backups de Base de Datos — Tareas
 
 - [ ] Importar módulos necesarios (`FileResponse`, configuración de base de datos) en `inventario/views.py`[cite: 2].
 - [ ] Programar la vista `descargar_backup` para leer y servir `db.sqlite3`[cite: 2].
