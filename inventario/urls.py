@@ -10,4 +10,5 @@ urlpatterns = [
     path("categorias/", views.categoria_list_crear, name="categoria_list"),
     path("movimientos/", views.movimiento_historial, name="movimiento_historial"),
     path("movimientos/nuevo/", views.movimiento_crear, name="movimiento_crear"),
+    path("exportar/", views.export_csv, name="export_csv"),
 ]

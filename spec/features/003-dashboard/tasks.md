@@ -6,3 +6,5 @@
 - [x] Estilizar componentes de tarjetas (`.card`), tablas y botones de acción.
 - [x] Conectar enlaces semánticos con la clase activa según la vista en curso.
 - [x] Validar contra los criterios de aceptación de `spec.md`.
+- [ ] Migrar los estilos en línea (style="...") de las plantillas a `static/css/style.css` (tarea pendiente del feature 003‑dashboard).
+

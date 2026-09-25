@@ -3,10 +3,10 @@
 {% block title %}Categorías{% endblock %}
 
 {% block content %}
-<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 24px; align-items: start;">
+<div class="grid-two-col">
     <!-- Formulario de Alta -->
     <div class="card">
-        <h3 style="margin-bottom: 16px;">Nueva Categoría</h3>
+        <h3 class="mb-16">Nueva Categoría</h3>
         <form method="post">
             {% csrf_token %}
             <div class="form-group">
@@ -14,12 +14,12 @@
                 {{ form.nombre }}
                 {{ form.nombre.errors }}
             </div>
-            <button type="submit" class="btn btn-primary" style="width: 100%;">Crear Categoría</button>
+            <button type="submit" class="btn btn-primary w-full">Crear Categoría</button>
         </form>
     </div>
 
     <!-- Listado -->
-    <div class="card" style="padding: 0;">
+    <div class="card">
         <table>
             <thead>
                 <tr>
@@ -33,7 +33,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td style="text-align: center; color: #64748b; padding: 20px;">No hay categorías registradas.</td>
+                    <td class="text-center text-muted p-20">No hay categorías registradas.</td>
                 </tr>
                 {% endfor %}
             </tbody>
