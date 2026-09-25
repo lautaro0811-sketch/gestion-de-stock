@@ -643,3 +643,21 @@ class MovimientosReglasNegocioTest(TestCase):
         self.assertEqual(movimiento.cantidad, 7)
         self.assertEqual(movimiento.tipo, Movimiento.TipoMovimiento.ENTRADA)
 
+
+class MovimientoCrearInitialDataTest(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(username='tester', password='testpass')
+        self.cat = Categoria.objects.create(nombre='TestCat')
+        self.producto = Producto.objects.create(nombre='ProdTest', categoria=self.cat, stock_actual=5, stock_minimo=2)
+        self.client.login(username='tester', password='testpass')
+
+    def test_get_initial_data_prepopulates_form(self):
+        url = reverse('movimiento_crear') + f'?producto={self.producto.id}&tipo=ENTRADA'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        # product selected
+        self.assertIn(f'value="{self.producto.id}" selected', content)
+        # tipo selected
+        self.assertIn('value="ENTRADA" selected', content)

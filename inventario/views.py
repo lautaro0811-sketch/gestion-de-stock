@@ -1,3 +1,4 @@
+import csv
 from datetime import datetime
 
 from django.contrib import messages
@@ -5,10 +6,9 @@ from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import F, Q
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-import csv
-from django.http import HttpResponse
 
 from .forms import (
     CategoriaForm,
@@ -153,65 +153,7 @@ def categoria_list_crear(request):
 @transaction.atomic
 def movimiento_crear(request):
     """Vista unificada para registrar Entrada, Salida o Ajuste."""
-    producto_id_param = request.GET.get("producto")
-    tipo_param = request.GET.get("tipo")
-    initial_data = {}
-    if producto_id_param:
-        try:
-            initial_data["producto"] = int(producto_id_param)
-        except (ValueError, TypeError):
-            pass  # ignore invalid product id
-    if tipo_param:
-        initial_data["tipo"] = tipo_param
-    if request.method == "POST":
-        form = MovimientoUnificadoForm(request.POST)
-        if form.is_valid():
-            producto = form.cleaned_data["producto"]
-            fecha_date = form.cleaned_data["fecha"]
-            tipo = form.cleaned_data["tipo"]
-            cantidad = form.cleaned_data["cantidad"]
-            observacion = form.cleaned_data["observacion"]
-            hora_actual = timezone.now().time()
-            fecha_completa = timezone.make_aware(
-                datetime.combine(fecha_date, hora_actual)
-            )
-            usuario = request.user if request.user.is_authenticated else None
-            try:
-                if tipo == "ENTRADA":
-                    registrar_entrada(
-                        producto.id,
-                        cantidad,
-                        observacion,
-                        fecha=fecha_completa,
-                        usuario=usuario,
-                    )
-                    messages.success(request, f"Entrada registrada: +{cantidad} u. de '{producto.nombre}'.")
-                elif tipo == "SALIDA":
-                    registrar_salida(
-                        producto.id,
-                        cantidad,
-                        observacion,
-                        fecha=fecha_completa,
-                        usuario=usuario,
-                    )
-                    messages.success(request, f"Salida registrada: -{cantidad} u. de '{producto.nombre}'.")
-                elif tipo == "AJUSTE":
-                    registrar_ajuste(
-                        producto.id,
-                        cantidad,
-                        observacion,
-                        fecha=fecha_completa,
-                        usuario=usuario,
-                    )
-                    messages.success(request, f"Stock de '{producto.nombre}' ajustado a {cantidad} u.")
-                return redirect("movimiento_historial")
-            except ValidationError as e:
-                err_msg = e.message if hasattr(e, "message") else ", ".join(e.messages)
-                messages.error(request, err_msg)
-                form.add_error(None, err_msg)
-    else:
-        form = MovimientoUnificadoForm(initial=initial_data)
-    return render(request, "inventario/movimiento_form.html", {"form": form})
+    
     """Vista unificada para registrar Entrada, Salida o Ajuste."""
     producto_id_param = request.GET.get("producto")
 
@@ -267,8 +209,18 @@ def movimiento_crear(request):
                 form.add_error(None, err_msg)
     else:
         initial_data = {}
+        # Safely convert the product ID to an integer
         if producto_id_param:
-            initial_data["producto"] = producto_id_param
+            try:
+                producto_id = int(producto_id_param)
+                initial_data["producto"] = producto_id
+            except ValueError:
+                # Invalid ID; ignore and let form validation handle it
+                pass
+        # Preserve movement type if provided via query string
+        tipo_param = request.GET.get("tipo")
+        if tipo_param:
+            initial_data["tipo"] = tipo_param
         form = MovimientoUnificadoForm(initial=initial_data)
 
     return render(request, "inventario/movimiento_form.html", {"form": form})

@@ -17,6 +17,7 @@
             {% if solo_stock_bajo or query or categoria_seleccionada %}
                 <a href="{% url 'producto_list' %}" class="btn btn-secondary">Ver Todos</a>
             {% endif %}
+            <a href="{% url 'export_csv' %}?{{ request.GET.urlencode }}" class="btn btn-secondary">Exportar CSV</a>
         </div>
     </div>
 
@@ -104,6 +105,8 @@
                     </td>
                     <td class="text-nowrap">
                         <a href="{% url 'producto_editar' p.id %}" class="btn btn-action btn-sm">Ver / Editar</a>
+                        <a href="{% url 'movimiento_crear' %}?producto={{ p.id }}&tipo=ENTRADA" class="btn btn-success btn-sm">+Entrada</a>
+                        <a href="{% url 'movimiento_crear' %}?producto={{ p.id }}&tipo=SALIDA" class="btn btn-danger btn-sm">-Salida</a>
                         <a href="{% url 'producto_desactivar' p.id %}" class="btn btn-secondary btn-sm btn-desactivar" title="Dar de baja producto">Desactivar</a>
                     </td>
                 </tr>
