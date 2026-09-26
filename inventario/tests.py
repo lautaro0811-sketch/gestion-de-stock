@@ -661,3 +661,57 @@ class MovimientoCrearInitialDataTest(TestCase):
         self.assertIn(f'value="{self.producto.id}" selected', content)
         # tipo selected
         self.assertIn('value="ENTRADA" selected', content)
+
+class CategoriaViewsTest(TestCase):
+    def setUp(self):
+        # Category with active and inactive products
+        self.cat_active = Categoria.objects.create(nombre="CatConProductos")
+        # Active products
+        Producto.objects.create(nombre="Prod A", categoria=self.cat_active, stock_actual=5, stock_minimo=2, activo=True)
+        Producto.objects.create(nombre="Prod B", categoria=self.cat_active, stock_actual=3, stock_minimo=2, activo=True)
+        # Inactive product
+        Producto.objects.create(nombre="Prod C", categoria=self.cat_active, stock_actual=1, stock_minimo=2, activo=False)
+        # Category without products
+        self.cat_empty = Categoria.objects.create(nombre="CatVacia")
+
+    def test_productos_activos_count(self):
+        # Access the category list view
+        response = self.client.get(reverse('categoria_list'))
+        self.assertEqual(response.status_code, 200)
+        categorias = response.context['categorias']
+        # Find our category
+        cat = next(c for c in categorias if c.id == self.cat_active.id)
+        # Should have annotated count of active products = 2
+        self.assertTrue(hasattr(cat, 'productos_activos'))
+        self.assertEqual(cat.productos_activos, 2)
+        # Empty category should have count 0
+        cat_empty = next(c for c in categorias if c.id == self.cat_empty.id)
+        self.assertTrue(hasattr(cat_empty, 'productos_activos'))
+        self.assertEqual(cat_empty.productos_activos, 0)
+
+    def test_template_contains_correct_link(self):
+        response = self.client.get(reverse('categoria_list'))
+        self.assertEqual(response.status_code, 200)
+        # The link should point to producto_list with the category id as query param
+        expected_href = f"{reverse('producto_list')}?categoria={self.cat_active.id}"
+        self.assertIn(expected_href, response.content.decode())
+
+    def test_link_filters_productos_por_categoria(self):
+        # Access product list filtered by category
+        url = reverse('producto_list') + f"?categoria={self.cat_active.id}"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        productos = response.context['productos']
+        # Only active products of the category should appear (inactive excluded by view)
+        nombres = [p.nombre for p in productos]
+        self.assertIn("Prod A", nombres)
+        self.assertIn("Prod B", nombres)
+        self.assertNotIn("Prod C", nombres)  # inactive should be excluded
+        # Ensure no products from other categories appear
+        self.assertNotIn("CatVacia", nombres)
+
+    def test_categoria_list_crear_num_queries(self):
+        # Ensure the view does not suffer N+1 queries
+        with self.assertNumQueries(1):
+            response = self.client.get(reverse('categoria_list'))
+            self.assertEqual(response.status_code, 200)
