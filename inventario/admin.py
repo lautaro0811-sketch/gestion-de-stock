@@ -5,9 +5,9 @@ from .models import Categoria, Cliente, Movimiento, Producto
 
 @admin.register(Cliente)
 class ClienteAdmin(admin.ModelAdmin):
-    list_display = ("id", "nombre", "dni", "correo", "telefono", "activo", "fecha_creacion")
-    list_filter = ("activo",)
-    search_fields = ("nombre", "dni", "correo")
+    list_display = ("id", "nombre", "tipo_documento", "numero_documento", "domicilio", "correo", "telefono", "activo", "fecha_creacion")
+    list_filter = ("activo", "tipo_documento")
+    search_fields = ("nombre", "numero_documento", "correo", "domicilio")
     readonly_fields = ("fecha_creacion",)
 
 

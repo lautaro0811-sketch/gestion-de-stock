@@ -12,17 +12,31 @@
         {% csrf_token %}
         <div class="form-grid-row">
             <div class="form-group">
-                <label class="form-label">Nombre y Apellido *</label>
+                <label class="form-label">Nombre / Razón social *</label>
                 {{ form.nombre }}
                 {% if form.nombre.errors %}
                     <div class="field-error">{{ form.nombre.errors.0 }}</div>
                 {% endif %}
             </div>
             <div class="form-group">
-                <label class="form-label">DNI *</label>
-                {{ form.dni }}
-                {% if form.dni.errors %}
-                    <div class="field-error">{{ form.dni.errors.0 }}</div>
+                <label class="form-label">Tipo de documento *</label>
+                {{ form.tipo_documento }}
+                {% if form.tipo_documento.errors %}
+                    <div class="field-error">{{ form.tipo_documento.errors.0 }}</div>
+                {% endif %}
+            </div>
+            <div class="form-group">
+                <label class="form-label">CUIT / DNI *</label>
+                {{ form.numero_documento }}
+                {% if form.numero_documento.errors %}
+                    <div class="field-error">{{ form.numero_documento.errors.0 }}</div>
+                {% endif %}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Domicilio de entrega</label>
+                {{ form.domicilio }}
+                {% if form.domicilio.errors %}
+                    <div class="field-error">{{ form.domicilio.errors.0 }}</div>
                 {% endif %}
             </div>
             <div class="form-group">
@@ -53,7 +67,7 @@
     <form method="get" class="filter-form">
         <div class="filter-input-main">
             <label class="form-label">Buscar</label>
-            <input type="text" name="q" value="{{ query }}" placeholder="DNI, nombre o N° de cliente (ID)..." class="form-control">
+            <input type="text" name="q" value="{{ query }}" placeholder="CUIT / DNI, nombre o N° de cliente (ID)..." class="form-control">
         </div>
         <div>
             <button type="submit" class="btn btn-primary">Buscar</button>
@@ -69,8 +83,9 @@
             <thead>
                 <tr>
                     <th>N° Cliente (ID)</th>
-                    <th>Nombre</th>
-                    <th>DNI</th>
+                    <th>Nombre / Razón social</th>
+                    <th>Documento</th>
+                    <th>Domicilio de entrega</th>
                     <th>Correo</th>
                     <th>Teléfono</th>
                     <th>Acciones</th>
@@ -81,7 +96,8 @@
                 <tr class="row-normal">
                     <td><strong>#{{ c.id }}</strong></td>
                     <td><strong>{{ c.nombre }}</strong></td>
-                    <td>{{ c.dni }}</td>
+                    <td>{% if c.tipo_documento and c.numero_documento %}{{ c.tipo_documento }} {{ c.numero_documento }}{% else %}-{% endif %}</td>
+                    <td>{{ c.domicilio|default:"-" }}</td>
                     <td>{{ c.correo|default:"-" }}</td>
                     <td>{{ c.telefono|default:"-" }}</td>
                     <td class="text-nowrap">
@@ -90,7 +106,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="6" class="empty-row">No se encontraron clientes registrados.</td>
+                    <td colspan="7" class="empty-row">No se encontraron clientes registrados.</td>
                 </tr>
                 {% endfor %}
             </tbody>
