@@ -1,6 +1,15 @@
 from django.contrib import admin
 
-from .models import Categoria, Movimiento, Producto
+from .models import Categoria, Cliente, Movimiento, Producto
+
+
+@admin.register(Cliente)
+class ClienteAdmin(admin.ModelAdmin):
+    list_display = ("id", "nombre", "dni", "correo", "telefono", "activo", "fecha_creacion")
+    list_filter = ("activo",)
+    search_fields = ("nombre", "dni", "correo")
+    readonly_fields = ("fecha_creacion",)
+
 
 
 @admin.register(Categoria)

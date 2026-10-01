@@ -8,7 +8,10 @@ urlpatterns = [
     path("productos/<int:pk>/editar/", views.producto_editar, name="producto_editar"),
     path("productos/<int:pk>/desactivar/", views.producto_desactivar, name="producto_desactivar"),
     path("categorias/", views.categoria_list_crear, name="categoria_list"),
+    path("clientes/", views.cliente_list_crear, name="cliente_list"),
+    path("clientes/<int:pk>/desactivar/", views.cliente_desactivar, name="cliente_desactivar"),
     path("movimientos/", views.movimiento_historial, name="movimiento_historial"),
+
     path("movimientos/nuevo/", views.movimiento_crear, name="movimiento_crear"),
     path("exportar/", views.export_csv, name="export_csv"),
 ]

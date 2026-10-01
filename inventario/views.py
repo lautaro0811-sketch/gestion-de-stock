@@ -12,11 +12,13 @@ from django.utils import timezone
 
 from .forms import (
     CategoriaForm,
+    ClienteForm,
     MovimientoUnificadoForm,
     ProductoCrearForm,
     ProductoEditarForm,
 )
-from .models import Categoria, Movimiento, Producto
+from .models import Categoria, Cliente, Movimiento, Producto
+
 from .services import registrar_ajuste, registrar_entrada, registrar_salida
 
 
@@ -150,6 +152,56 @@ def categoria_list_crear(request):
         "inventario/categoria_list.html",
         {"categorias": categorias, "form": form},
     )
+
+
+# --- CLIENTES ---
+def cliente_list_crear(request):
+    if request.method == "POST":
+        form = ClienteForm(request.POST)
+        if form.is_valid():
+            cliente = form.save()
+            messages.success(request, f"Cliente '{cliente.nombre}' registrado con éxito.")
+            return redirect("cliente_list")
+    else:
+        form = ClienteForm()
+
+    clientes = Cliente.objects.filter(activo=True)
+    query = request.GET.get("q", "").strip()
+    if query:
+        filtro = Q(nombre__icontains=query) | Q(dni__icontains=query)
+        query_digits = "".join(c for c in query if c.isdigit())
+        if query_digits:
+            filtro |= Q(dni__icontains=query_digits)
+            if query.isdigit():
+                filtro |= Q(id=int(query))
+        clientes = clientes.filter(filtro)
+
+    paginator = Paginator(clientes, 15)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    return render(
+        request,
+        "inventario/cliente_list.html",
+        {
+            "clientes": page_obj,
+            "page_obj": page_obj,
+            "form": form,
+            "query": query,
+        },
+    )
+
+
+def cliente_desactivar(request, pk):
+    cliente = get_object_or_404(Cliente, pk=pk, activo=True)
+    if request.method == "POST":
+        cliente.activo = False
+        cliente.save(update_fields=["activo"])
+        messages.success(request, f"Cliente '{cliente.nombre}' dado de baja correctamente.")
+        return redirect("cliente_list")
+
+    return render(request, "inventario/cliente_confirm_delete.html", {"cliente": cliente})
+
 
 
 # --- MOVIMIENTOS ---

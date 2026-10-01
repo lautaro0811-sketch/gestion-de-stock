@@ -1,7 +1,7 @@
 from django import forms
 from django.utils import timezone
 
-from .models import Categoria, Movimiento, Producto
+from .models import Categoria, Cliente, Movimiento, Producto
 
 
 class ProductoBaseForm(forms.ModelForm):
@@ -41,6 +41,26 @@ class CategoriaForm(forms.ModelForm):
         widgets = {
             "nombre": forms.TextInput(attrs={"class": "form-control", "placeholder": "Nombre de la categoría"}),
         }
+
+
+class ClienteForm(forms.ModelForm):
+    class Meta:
+        model = Cliente
+        fields = ["nombre", "dni", "correo", "telefono"]
+        widgets = {
+            "nombre": forms.TextInput(attrs={"class": "form-control", "placeholder": "Nombre completo"}),
+            "dni": forms.TextInput(attrs={"class": "form-control", "placeholder": "DNI del cliente"}),
+            "correo": forms.EmailInput(attrs={"class": "form-control", "placeholder": "ejemplo@correo.com"}),
+            "telefono": forms.TextInput(attrs={"class": "form-control", "placeholder": "Teléfono de contacto"}),
+        }
+
+    def clean_dni(self):
+        dni = self.cleaned_data.get("dni", "")
+        dni_limpio = "".join(c for c in str(dni) if c.isdigit())
+        if not dni_limpio:
+            raise forms.ValidationError("El DNI debe contener al menos un número.")
+        return dni_limpio
+
 
 
 class MovimientoUnificadoForm(forms.Form):
