@@ -23,6 +23,12 @@
             </div>
 
             <div class="form-group">
+                <label>Precio Unitario ($)</label>
+                {{ form.precio_unitario }}
+                {{ form.precio_unitario.errors }}
+            </div>
+
+            <div class="form-group">
                 <label>Stock Mínimo (aviso de reposición)</label>
                 {{ form.stock_minimo }}
                 {{ form.stock_minimo.errors }}

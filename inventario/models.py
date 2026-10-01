@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
@@ -23,6 +25,13 @@ class Producto(models.Model):
     categoria = models.ForeignKey(
         Categoria, on_delete=models.PROTECT, related_name="productos",
         verbose_name="Categoria",
+    )
+    precio_unitario = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+        verbose_name="Precio unitario",
     )
     stock_actual = models.PositiveIntegerField(default=0, verbose_name="Stock actual")
     stock_minimo = models.PositiveIntegerField(default=0, verbose_name="Stock minimo")
@@ -113,6 +122,14 @@ class Movimiento(models.Model):
         blank=True,
         null=True,
         verbose_name="Observación",
+    )
+    pedido = models.ForeignKey(
+        "Pedido",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="movimientos",
+        verbose_name="Pedido",
     )
 
     objects = MovimientoQuerySet.as_manager()
@@ -209,3 +226,87 @@ class Cliente(models.Model):
         if self.telefono:
             self.telefono = "".join(c for c in str(self.telefono) if c.isdigit())
         super().save(*args, **kwargs)
+
+
+class Pedido(models.Model):
+    class EstadoPedido(models.TextChoices):
+        CONFIRMADO = "CONFIRMADO", "Confirmado"
+        CANCELADO = "CANCELADO", "Cancelado"
+
+    numero_operacion = models.CharField(
+        max_length=20,
+        unique=True,
+        verbose_name="Número de operación",
+    )
+    cliente = models.ForeignKey(
+        Cliente,
+        on_delete=models.PROTECT,
+        related_name="pedidos",
+        verbose_name="Cliente",
+    )
+    fecha = models.DateTimeField(
+        default=timezone.now,
+        verbose_name="Fecha",
+    )
+    estado = models.CharField(
+        max_length=15,
+        choices=EstadoPedido.choices,
+        default=EstadoPedido.CONFIRMADO,
+        verbose_name="Estado",
+    )
+    observacion = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="Observación",
+    )
+    fecha_creacion = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de creación")
+    fecha_actualizacion = models.DateTimeField(auto_now=True, verbose_name="Última actualización")
+
+    class Meta:
+        verbose_name = "Pedido"
+        verbose_name_plural = "Pedidos"
+        ordering = ["-fecha", "-id"]
+
+    def __str__(self):
+        return f"Pedido #{self.numero_operacion} - {self.cliente.nombre}"
+
+    @property
+    def total(self):
+        return sum((item.subtotal for item in self.items.all()), Decimal("0.00"))
+
+
+class PedidoItem(models.Model):
+    pedido = models.ForeignKey(
+        Pedido,
+        on_delete=models.CASCADE,
+        related_name="items",
+        verbose_name="Pedido",
+    )
+    producto = models.ForeignKey(
+        Producto,
+        on_delete=models.PROTECT,
+        related_name="pedido_items",
+        verbose_name="Producto",
+    )
+    cantidad = models.PositiveIntegerField(
+        validators=[MinValueValidator(1)],
+        verbose_name="Cantidad",
+    )
+    precio_unitario = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.00"))],
+        verbose_name="Precio unitario",
+    )
+
+    class Meta:
+        verbose_name = "Ítem de Pedido"
+        verbose_name_plural = "Ítems de Pedido"
+
+    def __str__(self):
+        return f"{self.producto.nombre} x {self.cantidad} (${self.precio_unitario})"
+
+    @property
+    def subtotal(self):
+        return self.cantidad * self.precio_unitario
+

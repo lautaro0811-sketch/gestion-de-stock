@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% block title %}Detalle de Pedido {{ pedido.numero_operacion }}{% endblock %}
+
+{% block content %}
+<div class="card mb-16">
+    <div class="form-actions mb-16">
+        <h2>Pedido {{ pedido.numero_operacion }}</h2>
+        <span class="badge {% if pedido.estado == 'CONFIRMADO' %}badge-success{% else %}badge-danger{% endif %}">
+            {{ pedido.estado }}
+        </span>
+    </div>
+    
+    <div class="grid-two-col mb-16">
+        <div>
+            <p class="text-muted">Cliente</p>
+            <p><strong>{{ pedido.cliente.nombre }}</strong></p>
+            {% if pedido.cliente.dni %}
+            <p class="text-muted"><small>DNI: {{ pedido.cliente.dni }}</small></p>
+            {% endif %}
+        </div>
+        <div>
+            <p class="text-muted">Fecha de Operación</p>
+            <p><strong>{{ pedido.fecha|date:"d/m/Y H:i" }}</strong></p>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-16">
+    <h3 class="mb-16">Ítems del Pedido</h3>
+    <table class="w-full">
+        <thead>
+            <tr>
+                <th>Producto</th>
+                <th class="text-center">Cantidad</th>
+                <th class="text-center">Precio Unit.</th>
+                <th class="text-center">Subtotal</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in pedido.items.all %}
+            <tr>
+                <td>{{ item.producto.nombre }}</td>
+                <td class="text-center">{{ item.cantidad }}</td>
+                <td class="text-center">${{ item.precio_unitario }}</td>
+                <td class="text-center"><strong>${{ item.subtotal }}</strong></td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" class="text-center text-muted p-20">No hay ítems en este pedido.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <div class="form-actions" style="margin-top: 24px; justify-content: flex-end;">
+        <h3>Total: ${{ pedido.total }}</h3>
+    </div>
+</div>
+
+<div class="form-actions">
+    <a href="{% url 'pedido_list' %}" class="btn btn-secondary">Volver al listado</a>
+    
+    {% if pedido.estado == 'CONFIRMADO' %}
+        <a href="{% url 'pedido_cancelar' pedido.id %}" class="btn btn-danger">Cancelar Pedido</a>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,4 +1,5 @@
 import datetime
+from decimal import Decimal
 
 from django.contrib import admin
 from django.contrib.auth import get_user_model
@@ -15,12 +16,24 @@ from inventario.admin import MovimientoAdmin
 from inventario.forms import (
     CategoriaForm,
     ClienteForm,
+    ItemPedidoFormSet,
     MovimientoUnificadoForm,
+    PedidoForm,
+    PedidoItemFormSet,
     ProductoCrearForm,
     ProductoEditarForm,
 )
-from inventario.models import Categoria, Cliente, Movimiento, Producto
+from inventario.models import (
+    Categoria,
+    Cliente,
+    Movimiento,
+    Pedido,
+    PedidoItem,
+    Producto,
+)
 from inventario.services import (
+    cancelar_pedido,
+    crear_pedido,
     registrar_ajuste,
     registrar_entrada,
     registrar_salida,
@@ -1041,5 +1054,363 @@ class ClienteViewsTest(TestCase):
         page_obj2 = response_page2.context["page_obj"]
         self.assertEqual(len(page_obj2), 12)
         self.assertFalse(page_obj2.has_next())
+
+
+class PedidosServicesTest(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(username="vendedor", password="password123")
+        self.cat = Categoria.objects.create(nombre="Limpieza")
+        self.cliente = Cliente.objects.create(
+            nombre="Empresa Test S.A.",
+            tipo_documento="CUIT",
+            numero_documento="30712345678",
+            domicilio="Calle Falsa 123",
+            telefono="1144556677",
+        )
+        self.prod1 = Producto.objects.create(
+            nombre="Detergente 5L",
+            categoria=self.cat,
+            precio_unitario=Decimal("1500.50"),
+            stock_actual=20,
+            stock_minimo=5,
+        )
+        self.prod2 = Producto.objects.create(
+            nombre="Lavandina 5L",
+            categoria=self.cat,
+            precio_unitario=Decimal("800.00"),
+            stock_actual=10,
+            stock_minimo=2,
+        )
+
+    def test_creacion_exitosa_pedido_y_descuento_automatico_stock(self):
+        items_data = [
+            {"producto_id": self.prod1.id, "cantidad": 4},
+            {"producto_id": self.prod2.id, "cantidad": 2},
+        ]
+        pedido = crear_pedido(
+            cliente_id=self.cliente.id,
+            items_data=items_data,
+            usuario=self.user,
+            observacion="Entrega prioritaria",
+        )
+
+        self.assertEqual(pedido.estado, Pedido.EstadoPedido.CONFIRMADO)
+        self.assertEqual(pedido.cliente, self.cliente)
+        self.assertEqual(pedido.items.count(), 2)
+        self.assertTrue(pedido.numero_operacion.startswith(f"{timezone.now().year}-"))
+
+        # Descuento de stock en productos
+        self.prod1.refresh_from_db()
+        self.prod2.refresh_from_db()
+        self.assertEqual(self.prod1.stock_actual, 16)
+        self.assertEqual(self.prod2.stock_actual, 8)
+
+        # Validación de ítems y precios congelados
+        item1 = pedido.items.get(producto=self.prod1)
+        item2 = pedido.items.get(producto=self.prod2)
+        self.assertEqual(item1.precio_unitario, Decimal("1500.50"))
+        self.assertEqual(item1.subtotal, Decimal("6002.00"))
+        self.assertEqual(item2.precio_unitario, Decimal("800.00"))
+        self.assertEqual(item2.subtotal, Decimal("1600.00"))
+        self.assertEqual(pedido.total, Decimal("7602.00"))
+
+        # Modificación posterior de precio de catálogo NO altera precio histórico
+        self.prod1.precio_unitario = Decimal("2500.00")
+        self.prod1.save()
+        item1.refresh_from_db()
+        self.assertEqual(item1.precio_unitario, Decimal("1500.50"))
+
+        # Verificación de movimientos de auditoría
+        movs = Movimiento.objects.filter(pedido=pedido)
+        self.assertEqual(movs.count(), 2)
+        for m in movs:
+            self.assertEqual(m.tipo, Movimiento.TipoMovimiento.SALIDA)
+            self.assertEqual(m.created_by, self.user)
+            self.assertEqual(m.pedido, pedido)
+
+    def test_rechazo_pedido_por_stock_insuficiente_rollback_atomico(self):
+        # prod1 tiene 20 u. disponible, prod2 tiene 10 u. Pedimos 15 de prod2 (insuficiente)
+        items_data = [
+            {"producto_id": self.prod1.id, "cantidad": 5},
+            {"producto_id": self.prod2.id, "cantidad": 15},
+        ]
+
+        with self.assertRaises(ValidationError) as ctx:
+            crear_pedido(
+                cliente_id=self.cliente.id,
+                items_data=items_data,
+                usuario=self.user,
+            )
+
+        self.assertIn("Stock insuficiente", str(ctx.exception))
+
+        # Rollback atómico completo: no se crea pedido ni movimientos
+        self.assertEqual(Pedido.objects.count(), 0)
+        self.assertEqual(PedidoItem.objects.count(), 0)
+        self.assertEqual(Movimiento.objects.count(), 0)
+
+        # Stock de ambos productos intacto
+        self.prod1.refresh_from_db()
+        self.prod2.refresh_from_db()
+        self.assertEqual(self.prod1.stock_actual, 20)
+        self.assertEqual(self.prod2.stock_actual, 10)
+
+    def test_cancelacion_pedido_y_movimientos_compensatorios(self):
+        items_data = [
+            {"producto_id": self.prod1.id, "cantidad": 3},
+            {"producto_id": self.prod2.id, "cantidad": 2},
+        ]
+        pedido = crear_pedido(
+            cliente_id=self.cliente.id,
+            items_data=items_data,
+            usuario=self.user,
+        )
+
+        self.prod1.refresh_from_db()
+        self.prod2.refresh_from_db()
+        self.assertEqual(self.prod1.stock_actual, 17)
+        self.assertEqual(self.prod2.stock_actual, 8)
+
+        # Cancelar pedido
+        pedido_cancelado = cancelar_pedido(
+            pedido_id=pedido.id,
+            usuario=self.user,
+            motivo="Cliente canceló la orden",
+        )
+
+        self.assertEqual(pedido_cancelado.estado, Pedido.EstadoPedido.CANCELADO)
+        self.assertIn("Cliente canceló la orden", pedido_cancelado.observacion)
+
+        # Stock restituido
+        self.prod1.refresh_from_db()
+        self.prod2.refresh_from_db()
+        self.assertEqual(self.prod1.stock_actual, 20)
+        self.assertEqual(self.prod2.stock_actual, 10)
+
+        # Movimientos: 2 de salida originales + 2 de entrada compensatorios = 4
+        movs = Movimiento.objects.filter(pedido=pedido)
+        self.assertEqual(movs.count(), 4)
+        entradas = movs.filter(tipo=Movimiento.TipoMovimiento.ENTRADA)
+        self.assertEqual(entradas.count(), 2)
+        for ent in entradas:
+            self.assertIn("Compensación por cancelación", ent.observacion)
+
+        # Re-cancelar debe arrojar error
+        with self.assertRaises(ValidationError) as ctx:
+            cancelar_pedido(pedido_id=pedido.id)
+        self.assertIn("ya se encuentra cancelado", str(ctx.exception))
+
+    def test_asignacion_correlativo_anual_seguro(self):
+        anio_actual = timezone.now().year
+        p1 = crear_pedido(
+            cliente_id=self.cliente.id,
+            items_data=[{"producto_id": self.prod1.id, "cantidad": 1}],
+        )
+        p2 = crear_pedido(
+            cliente_id=self.cliente.id,
+            items_data=[{"producto_id": self.prod1.id, "cantidad": 1}],
+        )
+
+        self.assertEqual(p1.numero_operacion, f"{anio_actual}-0001")
+        self.assertEqual(p2.numero_operacion, f"{anio_actual}-0002")
+
+        # Pedido en otro año calendario
+        fecha_otro_anio = timezone.make_aware(datetime.datetime(anio_actual + 1, 1, 15, 10, 0))
+        p_otro = crear_pedido(
+            cliente_id=self.cliente.id,
+            items_data=[{"producto_id": self.prod1.id, "cantidad": 1}],
+            fecha=fecha_otro_anio,
+        )
+        self.assertEqual(p_otro.numero_operacion, f"{anio_actual + 1}-0001")
+
+    def test_compatibilidad_registrar_entrada_salida_sin_pedido(self):
+        # Movimiento manual sin pedido (retrocompatibilidad)
+        m_ent = registrar_entrada(
+            producto_id=self.prod1.id,
+            cantidad=5,
+            observacion="Ingreso general",
+        )
+        self.assertIsNone(m_ent.pedido)
+
+        m_sal = registrar_salida(
+            producto_id=self.prod1.id,
+            cantidad=2,
+            observacion="Merma",
+        )
+        self.assertIsNone(m_sal.pedido)
+
+
+class PedidosViewsAndFormsTest(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(username="operador_ventas", password="password123")
+        self.cat = Categoria.objects.create(nombre="Bazar")
+        self.cliente = Cliente.objects.create(
+            nombre="Juan Perez",
+            tipo_documento="DNI",
+            numero_documento="30111222",
+            domicilio="Av. Mitre 500",
+            telefono="1122334455",
+        )
+        self.producto = Producto.objects.create(
+            nombre="Escoba Plástica",
+            categoria=self.cat,
+            precio_unitario=Decimal("950.00"),
+            stock_actual=15,
+            stock_minimo=3,
+        )
+
+    def test_pedido_list_view_render_y_filtros(self):
+        pedido = crear_pedido(
+            cliente_id=self.cliente.id,
+            items_data=[{"producto_id": self.producto.id, "cantidad": 2}],
+        )
+
+        response = self.client.get(reverse("pedido_list"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, pedido.numero_operacion)
+        self.assertContains(response, "Juan Perez")
+
+        # Filtro por número de operación
+        resp_filtro = self.client.get(reverse("pedido_list"), {"q": pedido.numero_operacion})
+        self.assertEqual(resp_filtro.status_code, 200)
+        self.assertContains(resp_filtro, pedido.numero_operacion)
+
+        # Filtro por estado
+        resp_estado = self.client.get(reverse("pedido_list"), {"estado": "CONFIRMADO"})
+        self.assertEqual(resp_estado.status_code, 200)
+        self.assertContains(resp_estado, pedido.numero_operacion)
+
+    def test_pedido_crear_view_post_exitoso(self):
+        self.client.login(username="operador_ventas", password="password123")
+        url = reverse("pedido_crear")
+        data = {
+            "cliente": self.cliente.id,
+            "fecha": timezone.now().date().strftime("%Y-%m-%d"),
+            "observacion": "Pedido vía web",
+            # Formset management fields
+            "items-TOTAL_FORMS": "1",
+            "items-INITIAL_FORMS": "0",
+            "items-MIN_NUM_FORMS": "0",
+            "items-MAX_NUM_FORMS": "1000",
+            "items-0-producto": self.producto.id,
+            "items-0-cantidad": "3",
+        }
+
+        response = self.client.post(url, data, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        pedido = Pedido.objects.latest("id")
+        self.assertEqual(pedido.cliente, self.cliente)
+        self.assertEqual(pedido.items.count(), 1)
+        self.assertEqual(pedido.items.first().cantidad, 3)
+
+        self.producto.refresh_from_db()
+        self.assertEqual(self.producto.stock_actual, 12)
+
+    def test_pedido_crear_view_stock_insuficiente_muestra_error(self):
+        self.client.login(username="operador_ventas", password="password123")
+        url = reverse("pedido_crear")
+        data = {
+            "cliente": self.cliente.id,
+            "fecha": timezone.now().date().strftime("%Y-%m-%d"),
+            "observacion": "Pedido excesivo",
+            "items-TOTAL_FORMS": "1",
+            "items-INITIAL_FORMS": "0",
+            "items-MIN_NUM_FORMS": "0",
+            "items-MAX_NUM_FORMS": "1000",
+            "items-0-producto": self.producto.id,
+            "items-0-cantidad": "50",  # Hay solo 15
+        }
+
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Pedido.objects.count(), 0)
+        self.producto.refresh_from_db()
+        self.assertEqual(self.producto.stock_actual, 15)
+
+    def test_pedido_detalle_view(self):
+        pedido = crear_pedido(
+            cliente_id=self.cliente.id,
+            items_data=[{"producto_id": self.producto.id, "cantidad": 2}],
+        )
+        url = reverse("pedido_detalle", kwargs={"pk": pedido.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, pedido.numero_operacion)
+        self.assertContains(response, "Escoba Plástica")
+        self.assertContains(response, "$1900.00")
+
+    def test_pedido_cancelar_view_post(self):
+        self.client.login(username="operador_ventas", password="password123")
+        pedido = crear_pedido(
+            cliente_id=self.cliente.id,
+            items_data=[{"producto_id": self.producto.id, "cantidad": 4}],
+        )
+        self.producto.refresh_from_db()
+        self.assertEqual(self.producto.stock_actual, 11)
+
+        url = reverse("pedido_cancelar", kwargs={"pk": pedido.pk})
+        response = self.client.post(url, {"motivo": "Cancelado por error"}, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        pedido.refresh_from_db()
+        self.assertEqual(pedido.estado, Pedido.EstadoPedido.CANCELADO)
+        self.producto.refresh_from_db()
+        self.assertEqual(self.producto.stock_actual, 15)
+
+
+class ProductoPrecioUnitarioTest(TestCase):
+    def setUp(self):
+        self.cat = Categoria.objects.create(nombre="Higiene")
+
+    def test_producto_crear_con_precio_unitario(self):
+        form_data = {
+            "nombre": "Jabón Líquido 500ml",
+            "categoria": self.cat.id,
+            "precio_unitario": "350.75",
+            "stock_minimo": 10,
+            "stock_inicial": 25,
+        }
+        form = ProductoCrearForm(data=form_data)
+        self.assertTrue(form.is_valid())
+        prod = form.save()
+        self.assertEqual(prod.precio_unitario, Decimal("350.75"))
+
+    def test_producto_editar_actualiza_precio_unitario(self):
+        prod = Producto.objects.create(
+            nombre="Jabón en Barra",
+            categoria=self.cat,
+            precio_unitario=Decimal("100.00"),
+            stock_actual=10,
+            stock_minimo=2,
+        )
+        form_data = {
+            "nombre": "Jabón en Barra",
+            "categoria": self.cat.id,
+            "precio_unitario": "145.50",
+            "stock_minimo": 2,
+        }
+        form = ProductoEditarForm(data=form_data, instance=prod)
+        self.assertTrue(form.is_valid())
+        form.save()
+        prod.refresh_from_db()
+        self.assertEqual(prod.precio_unitario, Decimal("145.50"))
+
+    def test_export_csv_incluye_precio_unitario(self):
+        Producto.objects.create(
+            nombre="Desodorante Ambiental",
+            categoria=self.cat,
+            precio_unitario=Decimal("450.00"),
+            stock_actual=8,
+            stock_minimo=2,
+        )
+        response = self.client.get(reverse("export_csv"))
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode("utf-8")
+        self.assertIn("Precio Unitario", content)
+        self.assertIn("$450.00", content)
+
 
 

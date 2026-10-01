@@ -94,7 +94,16 @@
                         <span style="color: var(--color-text-muted); margin: 0 4px;">→</span>
                         <strong>{{ m.stock_posterior }} u.</strong>
                     </td>
-                    <td>{{ m.observacion|default:"—" }}</td>
+                    <td>
+                        {{ m.observacion|default:"—" }}
+                        {% if m.pedido %}
+                            <div>
+                                <a href="{% url 'pedido_detalle' m.pedido.id %}" class="badge badge-info" style="text-decoration: none; margin-top: 4px; display: inline-block;">
+                                    🧾 Pedido #{{ m.pedido.numero_operacion }}
+                                </a>
+                            </div>
+                        {% endif %}
+                    </td>
                 </tr>
                 {% empty %}
                 <tr>
