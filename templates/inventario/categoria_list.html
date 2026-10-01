@@ -24,16 +24,18 @@
             <thead>
                 <tr>
                     <th>Nombre de la Categoría</th>
+                    <th>Productos Activos</th>
                 </tr>
             </thead>
             <tbody>
                 {% for cat in categorias %}
                 <tr>
-                    <td><strong>{{ cat.nombre }}</strong></td>
+                    <td><strong><a href="{% url 'producto_list' %}?categoria={{ cat.id }}">{{ cat.nombre }}</a></strong></td>
+                    <td>{{ cat.productos_activos|default:0 }}</td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td class="text-center text-muted p-20">No hay categorías registradas.</td>
+                    <td class="text-center text-muted p-20" colspan="2">No hay categorías registradas.</td>
                 </tr>
                 {% endfor %}
             </tbody>

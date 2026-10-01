@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import F, Q
+from django.db.models import F, Q, Count
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -141,7 +141,10 @@ def categoria_list_crear(request):
     else:
         form = CategoriaForm()
 
-    categorias = Categoria.objects.all()
+    # Annotate each category with count of active products
+    categorias = Categoria.objects.annotate(
+        productos_activos=Count('productos', filter=Q(productos__activo=True))
+    )
     return render(
         request,
         "inventario/categoria_list.html",
