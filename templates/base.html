@@ -30,7 +30,11 @@
                 <a href="{% url 'categoria_list' %}" class="sidebar-link {% if request.resolver_match.url_name == 'categoria_list' %}active{% endif %}">
                     🏷️ Categorías
                 </a>
+                <a href="{% url 'cliente_list' %}" class="sidebar-link {% if request.resolver_match.url_name == 'cliente_list' %}active{% endif %}">
+                    👥 Clientes
+                </a>
             </nav>
+
         </aside>
 
         <!-- Contenedor Principal -->

@@ -14,11 +14,13 @@ from django.utils import timezone
 from inventario.admin import MovimientoAdmin
 from inventario.forms import (
     CategoriaForm,
+    ClienteForm,
     MovimientoUnificadoForm,
     ProductoCrearForm,
     ProductoEditarForm,
 )
-from inventario.models import Categoria, Movimiento, Producto
+from inventario.models import Categoria, Cliente, Movimiento, Producto
+
 from inventario.services import (
     registrar_ajuste,
     registrar_entrada,
@@ -715,3 +717,194 @@ class CategoriaViewsTest(TestCase):
         with self.assertNumQueries(1):
             response = self.client.get(reverse('categoria_list'))
             self.assertEqual(response.status_code, 200)
+
+
+class ClienteModelAndFormTest(TestCase):
+    def test_alta_cliente_valida_modelo_y_normalizacion_dni(self):
+        cliente = Cliente.objects.create(
+            nombre="Juan Pérez",
+            dni="40.123.456",
+            correo="juan@example.com",
+            telefono="1122334455",
+        )
+        self.assertEqual(cliente.dni, "40123456")
+        self.assertTrue(cliente.activo)
+        self.assertIn("Juan Pérez", str(cliente))
+
+    def test_rechazo_dni_duplicado_mismo_formato_en_modelo(self):
+        Cliente.objects.create(nombre="Cliente Uno", dni="11223344")
+        with transaction.atomic():
+            with self.assertRaises(IntegrityError):
+                Cliente.objects.create(nombre="Cliente Dos", dni="11223344")
+
+    def test_rechazo_dni_duplicado_distinto_formato_en_modelo(self):
+        Cliente.objects.create(nombre="Cliente Uno", dni="11.223.344")
+        with transaction.atomic():
+            with self.assertRaises(IntegrityError):
+                Cliente.objects.create(nombre="Cliente Dos", dni="11223344")
+
+    def test_rechazo_dni_duplicado_en_formulario_mismo_y_distinto_formato(self):
+        Cliente.objects.create(nombre="Cliente Existente", dni="30111222")
+
+        # Mismo formato en form
+        form_mismo = ClienteForm(data={
+            "nombre": "Otro Cliente",
+            "dni": "30111222",
+            "correo": "",
+            "telefono": "",
+        })
+        self.assertFalse(form_mismo.is_valid())
+        self.assertIn("dni", form_mismo.errors)
+
+        # Distinto formato (con puntos y guión) en form
+        form_distinto = ClienteForm(data={
+            "nombre": "Otro Cliente 2",
+            "dni": "30.111.222",
+            "correo": "",
+            "telefono": "",
+        })
+        self.assertFalse(form_distinto.is_valid())
+        self.assertIn("dni", form_distinto.errors)
+
+    def test_rechazo_dni_sin_digitos_en_formulario(self):
+        form = ClienteForm(data={
+            "nombre": "Cliente Inválido",
+            "dni": "abc-xyz",
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn("dni", form.errors)
+
+    def test_alta_cliente_via_formulario_valido(self):
+        form = ClienteForm(data={
+            "nombre": "María López",
+            "dni": "28.999.888",
+            "correo": "maria@test.com",
+            "telefono": "351-998877",
+        })
+        self.assertTrue(form.is_valid())
+        cliente = form.save()
+        self.assertEqual(cliente.dni, "28999888")
+        self.assertEqual(cliente.nombre, "María López")
+
+
+class ClienteViewsTest(TestCase):
+    def setUp(self):
+        self.cliente_activo_1 = Cliente.objects.create(
+            nombre="Carlos Gomez",
+            dni="20111222",
+            correo="carlos@test.com",
+            telefono="1144556677",
+            activo=True,
+        )
+        self.cliente_activo_2 = Cliente.objects.create(
+            nombre="Ana Fernandez",
+            dni="25333444",
+            correo="ana@test.com",
+            telefono="1188990011",
+            activo=True,
+        )
+        self.cliente_inactivo = Cliente.objects.create(
+            nombre="Roberto Inactivo",
+            dni="10555666",
+            correo="roberto@test.com",
+            telefono="1100000000",
+            activo=False,
+        )
+
+    def test_alta_cliente_post_valido_crea_y_redirige(self):
+        url = reverse("cliente_list")
+        data = {
+            "nombre": "Lucía Morales",
+            "dni": "35.777.888",
+            "correo": "lucia@test.com",
+            "telefono": "1133221100",
+        }
+        response = self.client.post(url, data, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Cliente &#x27;Lucía Morales&#x27; registrado con éxito.")
+
+        cliente = Cliente.objects.filter(dni="35777888").first()
+        self.assertIsNotNone(cliente)
+        self.assertEqual(cliente.nombre, "Lucía Morales")
+        self.assertTrue(cliente.activo)
+
+    def test_listado_solo_muestra_clientes_activos(self):
+        url = reverse("cliente_list")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+        nombres = [c.nombre for c in response.context["clientes"]]
+        self.assertIn("Carlos Gomez", nombres)
+        self.assertIn("Ana Fernandez", nombres)
+        self.assertNotIn("Roberto Inactivo", nombres)
+
+    def test_busqueda_por_dni_exacto_y_con_formato(self):
+        url = reverse("cliente_list")
+
+        # Búsqueda por DNI con números directos
+        resp_exacto = self.client.get(url, {"q": "20111222"})
+        nombres_exacto = [c.nombre for c in resp_exacto.context["clientes"]]
+        self.assertIn("Carlos Gomez", nombres_exacto)
+        self.assertNotIn("Ana Fernandez", nombres_exacto)
+
+        # Búsqueda por DNI con puntos
+        resp_formato = self.client.get(url, {"q": "20.111.222"})
+        nombres_formato = [c.nombre for c in resp_formato.context["clientes"]]
+        self.assertIn("Carlos Gomez", nombres_formato)
+        self.assertNotIn("Ana Fernandez", nombres_formato)
+
+    def test_busqueda_por_nombre_parcial(self):
+        url = reverse("cliente_list")
+        resp = self.client.get(url, {"q": "Fernan"})
+        nombres = [c.nombre for c in resp.context["clientes"]]
+        self.assertIn("Ana Fernandez", nombres)
+        self.assertNotIn("Carlos Gomez", nombres)
+
+    def test_busqueda_por_id_exacto(self):
+        url = reverse("cliente_list")
+        resp = self.client.get(url, {"q": str(self.cliente_activo_1.id)})
+        nombres = [c.nombre for c in resp.context["clientes"]]
+        self.assertIn("Carlos Gomez", nombres)
+        self.assertNotIn("Ana Fernandez", nombres)
+
+    def test_baja_logica_desactiva_y_no_elimina_de_bd(self):
+        url = reverse("cliente_desactivar", kwargs={"pk": self.cliente_activo_1.pk})
+        response = self.client.post(url, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        # Registro en BD debe seguir existiendo con activo=False
+        self.cliente_activo_1.refresh_from_db()
+        self.assertFalse(self.cliente_activo_1.activo)
+        self.assertTrue(Cliente.objects.filter(pk=self.cliente_activo_1.pk).exists())
+
+        # Ya no debe aparecer en el listado activo
+        list_url = reverse("cliente_list")
+        list_resp = self.client.get(list_url)
+        nombres = [c.nombre for c in list_resp.context["clientes"]]
+        self.assertNotIn("Carlos Gomez", nombres)
+
+    def test_paginacion_clientes(self):
+        # Crear 25 clientes adicionales
+        for i in range(1, 26):
+            Cliente.objects.create(
+                nombre=f"Cliente Paginado {i:02d}",
+                dni=f"500000{i:02d}",
+                activo=True,
+            )
+
+        response = self.client.get(reverse("cliente_list"))
+        self.assertEqual(response.status_code, 200)
+        page_obj = response.context["page_obj"]
+
+        # 2 clientes activos iniciales + 25 = 27 clientes activos
+        self.assertEqual(page_obj.paginator.count, 27)
+        self.assertEqual(len(page_obj), 15)
+        self.assertTrue(page_obj.has_next())
+
+        # Segunda página
+        response_page2 = self.client.get(reverse("cliente_list"), {"page": 2})
+        self.assertEqual(response_page2.status_code, 200)
+        page_obj2 = response_page2.context["page_obj"]
+        self.assertEqual(len(page_obj2), 12)
+        self.assertFalse(page_obj2.has_next())
+

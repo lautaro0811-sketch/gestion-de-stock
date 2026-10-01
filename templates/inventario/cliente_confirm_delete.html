@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block title %}Desactivar Cliente{% endblock %}
+{% block topbar_title %}Baja de Cliente{% endblock %}
+
+{% block content %}
+<div class="max-w-500 mx-auto mt-24">
+    <div class="card text-center">
+        <h2 class="text-danger mb-16">¿Desactivar cliente?</h2>
+        <p class="mb-20">
+            Vas a dar de baja a <strong>"{{ cliente.nombre }}"</strong> (DNI: {{ cliente.dni }}).<br>
+            <small class="text-muted">No se borrará de la base de datos para preservar el historial, pero ya no aparecerá en el listado activo.</small>
+        </p>
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="flex-center-gap-12">
+                <a href="{% url 'cliente_list' %}" class="btn btn-secondary">Cancelar</a>
+                <button type="submit" class="btn btn-danger">Sí, desactivar</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

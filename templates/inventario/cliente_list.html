@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+
+{% block title %}Clientes{% endblock %}
+{% block topbar_title %}Padrón de Clientes{% endblock %}
+
+{% block content %}
+<div class="card mb-20">
+    <div class="card-header-flex">
+        <h2 class="card-title">Nuevo Cliente</h2>
+    </div>
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-grid-row">
+            <div class="form-group">
+                <label class="form-label">Nombre y Apellido *</label>
+                {{ form.nombre }}
+                {% if form.nombre.errors %}
+                    <div class="field-error">{{ form.nombre.errors.0 }}</div>
+                {% endif %}
+            </div>
+            <div class="form-group">
+                <label class="form-label">DNI *</label>
+                {{ form.dni }}
+                {% if form.dni.errors %}
+                    <div class="field-error">{{ form.dni.errors.0 }}</div>
+                {% endif %}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Correo Electrónico</label>
+                {{ form.correo }}
+                {% if form.correo.errors %}
+                    <div class="field-error">{{ form.correo.errors.0 }}</div>
+                {% endif %}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Teléfono</label>
+                {{ form.telefono }}
+                {% if form.telefono.errors %}
+                    <div class="field-error">{{ form.telefono.errors.0 }}</div>
+                {% endif %}
+            </div>
+        </div>
+        <button type="submit" class="btn btn-success">+ Registrar Cliente</button>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-header-flex">
+        <h2 class="card-title">Listado de Clientes Activos</h2>
+    </div>
+
+    <!-- Barra de Búsqueda -->
+    <form method="get" class="filter-form">
+        <div class="filter-input-main">
+            <label class="form-label">Buscar</label>
+            <input type="text" name="q" value="{{ query }}" placeholder="DNI, nombre o N° de cliente (ID)..." class="form-control">
+        </div>
+        <div>
+            <button type="submit" class="btn btn-primary">Buscar</button>
+            {% if query %}
+                <a href="{% url 'cliente_list' %}" class="btn btn-secondary">Limpiar</a>
+            {% endif %}
+        </div>
+    </form>
+
+    <!-- Tabla de Clientes -->
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>N° Cliente (ID)</th>
+                    <th>Nombre</th>
+                    <th>DNI</th>
+                    <th>Correo</th>
+                    <th>Teléfono</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in clientes %}
+                <tr class="row-normal">
+                    <td><strong>#{{ c.id }}</strong></td>
+                    <td><strong>{{ c.nombre }}</strong></td>
+                    <td>{{ c.dni }}</td>
+                    <td>{{ c.correo|default:"-" }}</td>
+                    <td>{{ c.telefono|default:"-" }}</td>
+                    <td class="text-nowrap">
+                        <a href="{% url 'cliente_desactivar' c.id %}" class="btn btn-secondary btn-sm" title="Dar de baja cliente">Desactivar</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="empty-row">No se encontraron clientes registrados.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Paginación -->
+    {% include 'inventario/includes/pagination.html' %}
+</div>
+{% endblock %}
