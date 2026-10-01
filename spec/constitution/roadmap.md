@@ -9,6 +9,8 @@ _Features completadas, en orden de implementación._
 1. **001 · Catálogo y Modelos Base** — Gestión de categorías y productos con validaciones, alertas de stock bajo y bajas lógicas para preservar el historial[cite: 2].
 2. **002 · Movimientos e Historial** — Lógica centralizada y transaccional para registrar Entradas, Salidas y Ajustes físicos, junto con la auditoría cronológica unificada[cite: 2, 3].
 3. **003 · Interfaz Dashboard** — Layout estructurado con barra lateral (sidebar), variables CSS y tarjetas limpias sin usar frameworks externos pesados[cite: 3].
+4. **007 · Clientes** — Padrón y gestión de clientes con normalización de DNI, búsqueda y baja lógica.
+
 
 ## Siguiente 🔜
 
