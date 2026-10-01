@@ -20,7 +20,6 @@ from inventario.forms import (
     ProductoEditarForm,
 )
 from inventario.models import Categoria, Cliente, Movimiento, Producto
-
 from inventario.services import (
     registrar_ajuste,
     registrar_entrada,
@@ -720,92 +719,219 @@ class CategoriaViewsTest(TestCase):
 
 
 class ClienteModelAndFormTest(TestCase):
-    def test_alta_cliente_valida_modelo_y_normalizacion_dni(self):
-        cliente = Cliente.objects.create(
-            nombre="Juan Pérez",
-            dni="40.123.456",
-            correo="juan@example.com",
-            telefono="1122334455",
+    def test_dni_7_y_8_digitos_aceptado_en_modelo_y_normalizado(self):
+        # DNI 7 dígitos
+        c7 = Cliente(
+            nombre="Cliente Siete",
+            tipo_documento="DNI",
+            numero_documento="7.123.456",
+            domicilio="",
+            telefono="",
         )
-        self.assertEqual(cliente.dni, "40123456")
-        self.assertTrue(cliente.activo)
-        self.assertIn("Juan Pérez", str(cliente))
+        c7.full_clean()
+        c7.save()
+        self.assertEqual(c7.numero_documento, "7123456")
+        self.assertEqual(str(c7), "Cliente Siete (DNI 7123456)")
 
-    def test_rechazo_dni_duplicado_mismo_formato_en_modelo(self):
-        Cliente.objects.create(nombre="Cliente Uno", dni="11223344")
-        with transaction.atomic():
-            with self.assertRaises(IntegrityError):
-                Cliente.objects.create(nombre="Cliente Dos", dni="11223344")
+        # DNI 8 dígitos
+        c8 = Cliente(
+            nombre="Cliente Ocho",
+            tipo_documento="DNI",
+            numero_documento="40.123.456",
+            domicilio="Av. Siempre Viva 123",
+            telefono="11-4455-6677",
+        )
+        c8.full_clean()
+        c8.save()
+        self.assertEqual(c8.numero_documento, "40123456")
+        self.assertEqual(c8.telefono, "1144556677")
+        self.assertEqual(c8.domicilio, "Av. Siempre Viva 123")
 
-    def test_rechazo_dni_duplicado_distinto_formato_en_modelo(self):
-        Cliente.objects.create(nombre="Cliente Uno", dni="11.223.344")
-        with transaction.atomic():
-            with self.assertRaises(IntegrityError):
-                Cliente.objects.create(nombre="Cliente Dos", dni="11223344")
+    def test_dni_longitud_invalida_rechazado_en_modelo_y_form(self):
+        # DNI 6 dígitos
+        c_corto = Cliente(
+            nombre="DNI Corto",
+            tipo_documento="DNI",
+            numero_documento="123456",
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            c_corto.full_clean()
+        self.assertIn("numero_documento", ctx.exception.message_dict)
 
-    def test_rechazo_dni_duplicado_en_formulario_mismo_y_distinto_formato(self):
-        Cliente.objects.create(nombre="Cliente Existente", dni="30111222")
+        # DNI 9 dígitos
+        c_largo = Cliente(
+            nombre="DNI Largo",
+            tipo_documento="DNI",
+            numero_documento="123456789",
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            c_largo.full_clean()
+        self.assertIn("numero_documento", ctx.exception.message_dict)
 
-        # Mismo formato en form
-        form_mismo = ClienteForm(data={
-            "nombre": "Otro Cliente",
-            "dni": "30111222",
-            "correo": "",
+        # En formulario
+        form_corto = ClienteForm(data={
+            "nombre": "Form DNI Corto",
+            "tipo_documento": "DNI",
+            "numero_documento": "123.456",
+        })
+        self.assertFalse(form_corto.is_valid())
+        self.assertIn("numero_documento", form_corto.errors)
+
+    def test_cuit_valido_aceptado_en_modelo_y_form(self):
+        # CUIT real AFIP: 33-69345023-9 -> sum=145, 145%11=2, 11-2=9.
+        c_afip = Cliente(
+            nombre="AFIP",
+            tipo_documento="CUIT",
+            numero_documento="33-69345023-9",
+        )
+        c_afip.full_clean()
+        c_afip.save()
+        self.assertEqual(c_afip.numero_documento, "33693450239")
+
+        # CUIT real YPF: 30-54668997-9 -> sum=233, 233%11=2, 11-2=9.
+        form_ypf = ClienteForm(data={
+            "nombre": "YPF S.A.",
+            "tipo_documento": "CUIT",
+            "numero_documento": "30-54668997-9",
+            "domicilio": "Macacha Güemes 515",
+            "correo": "contacto@ypf.com",
+            "telefono": "01143446000",
+        })
+        self.assertTrue(form_ypf.is_valid())
+        cliente_ypf = form_ypf.save()
+        self.assertEqual(cliente_ypf.numero_documento, "30546689979")
+        self.assertEqual(cliente_ypf.domicilio, "Macacha Güemes 515")
+
+    def test_cuit_11_digitos_generico_aceptado(self):
+        cuit_generico = Cliente(
+            nombre="Empresa Test",
+            tipo_documento="CUIT",
+            numero_documento="20-12345678-0",
+        )
+        cuit_generico.full_clean()
+        cuit_generico.save()
+        self.assertEqual(cuit_generico.numero_documento, "20123456780")
+
+    def test_cuit_longitud_distinta_a_11_rechazado(self):
+        # CUIT 10 dígitos
+        c_10 = Cliente(
+            nombre="CUIT 10",
+            tipo_documento="CUIT",
+            numero_documento="3054668997",
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            c_10.full_clean()
+        self.assertIn("numero_documento", ctx.exception.message_dict)
+
+        # CUIT 12 dígitos
+        c_12 = Cliente(
+            nombre="CUIT 12",
+            tipo_documento="CUIT",
+            numero_documento="305466899791",
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            c_12.full_clean()
+        self.assertIn("numero_documento", ctx.exception.message_dict)
+
+        # En formulario
+        form_10 = ClienteForm(data={
+            "nombre": "CUIT 10 Form",
+            "tipo_documento": "CUIT",
+            "numero_documento": "3054668997",
+        })
+        self.assertFalse(form_10.is_valid())
+        self.assertIn("numero_documento", form_10.errors)
+
+    def test_telefono_corto_rechazado_y_vacio_aceptado(self):
+        # Teléfono corto en modelo
+        c_tel_corto = Cliente(
+            nombre="Tel Corto",
+            tipo_documento="DNI",
+            numero_documento="30111222",
+            telefono="12345",
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            c_tel_corto.full_clean()
+        self.assertIn("telefono", ctx.exception.message_dict)
+
+        # Teléfono corto en formulario
+        form_tel_corto = ClienteForm(data={
+            "nombre": "Tel Corto Form",
+            "tipo_documento": "DNI",
+            "numero_documento": "30111222",
+            "telefono": "12345",
+        })
+        self.assertFalse(form_tel_corto.is_valid())
+        self.assertIn("telefono", form_tel_corto.errors)
+
+        # Teléfono vacío (opcional) aceptado
+        form_tel_vacio = ClienteForm(data={
+            "nombre": "Sin Teléfono",
+            "tipo_documento": "DNI",
+            "numero_documento": "30111222",
             "telefono": "",
         })
-        self.assertFalse(form_mismo.is_valid())
-        self.assertIn("dni", form_mismo.errors)
+        self.assertTrue(form_tel_vacio.is_valid())
 
-        # Distinto formato (con puntos y guión) en form
-        form_distinto = ClienteForm(data={
-            "nombre": "Otro Cliente 2",
-            "dni": "30.111.222",
-            "correo": "",
-            "telefono": "",
-        })
-        self.assertFalse(form_distinto.is_valid())
-        self.assertIn("dni", form_distinto.errors)
-
-    def test_rechazo_dni_sin_digitos_en_formulario(self):
+    def test_domicilio_puede_quedar_vacio(self):
         form = ClienteForm(data={
-            "nombre": "Cliente Inválido",
-            "dni": "abc-xyz",
-        })
-        self.assertFalse(form.is_valid())
-        self.assertIn("dni", form.errors)
-
-    def test_alta_cliente_via_formulario_valido(self):
-        form = ClienteForm(data={
-            "nombre": "María López",
-            "dni": "28.999.888",
-            "correo": "maria@test.com",
-            "telefono": "351-998877",
+            "nombre": "Sin Domicilio",
+            "tipo_documento": "DNI",
+            "numero_documento": "31222333",
+            "domicilio": "",
         })
         self.assertTrue(form.is_valid())
         cliente = form.save()
-        self.assertEqual(cliente.dni, "28999888")
-        self.assertEqual(cliente.nombre, "María López")
+        self.assertEqual(cliente.domicilio, "")
+
+    def test_rechazo_numero_documento_duplicado_en_modelo_y_form(self):
+        Cliente.objects.create(
+            nombre="Cliente Uno",
+            tipo_documento="DNI",
+            numero_documento="11223344",
+        )
+        with transaction.atomic():
+            with self.assertRaises(IntegrityError):
+                Cliente.objects.create(
+                    nombre="Cliente Dos",
+                    tipo_documento="DNI",
+                    numero_documento="11223344",
+                )
+
+        # Mismo número con distinto formato en form
+        form_duplicado = ClienteForm(data={
+            "nombre": "Cliente Tres",
+            "tipo_documento": "DNI",
+            "numero_documento": "11.223.344",
+        })
+        self.assertFalse(form_duplicado.is_valid())
+        self.assertIn("numero_documento", form_duplicado.errors)
 
 
 class ClienteViewsTest(TestCase):
     def setUp(self):
         self.cliente_activo_1 = Cliente.objects.create(
             nombre="Carlos Gomez",
-            dni="20111222",
+            tipo_documento="DNI",
+            numero_documento="20111222",
+            domicilio="Calle Falsa 123",
             correo="carlos@test.com",
             telefono="1144556677",
             activo=True,
         )
         self.cliente_activo_2 = Cliente.objects.create(
             nombre="Ana Fernandez",
-            dni="25333444",
+            tipo_documento="CUIT",
+            numero_documento="30546689979",
+            domicilio="Av. Libertador 1000",
             correo="ana@test.com",
             telefono="1188990011",
             activo=True,
         )
         self.cliente_inactivo = Cliente.objects.create(
             nombre="Roberto Inactivo",
-            dni="10555666",
+            tipo_documento=None,
+            numero_documento=None,
             correo="roberto@test.com",
             telefono="1100000000",
             activo=False,
@@ -815,7 +941,9 @@ class ClienteViewsTest(TestCase):
         url = reverse("cliente_list")
         data = {
             "nombre": "Lucía Morales",
-            "dni": "35.777.888",
+            "tipo_documento": "DNI",
+            "numero_documento": "35.777.888",
+            "domicilio": "San Martín 450",
             "correo": "lucia@test.com",
             "telefono": "1133221100",
         }
@@ -823,9 +951,11 @@ class ClienteViewsTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Cliente &#x27;Lucía Morales&#x27; registrado con éxito.")
 
-        cliente = Cliente.objects.filter(dni="35777888").first()
+        cliente = Cliente.objects.filter(numero_documento="35777888").first()
         self.assertIsNotNone(cliente)
         self.assertEqual(cliente.nombre, "Lucía Morales")
+        self.assertEqual(cliente.tipo_documento, "DNI")
+        self.assertEqual(cliente.domicilio, "San Martín 450")
         self.assertTrue(cliente.activo)
 
     def test_listado_solo_muestra_clientes_activos(self):
@@ -837,21 +967,24 @@ class ClienteViewsTest(TestCase):
         self.assertIn("Carlos Gomez", nombres)
         self.assertIn("Ana Fernandez", nombres)
         self.assertNotIn("Roberto Inactivo", nombres)
+        self.assertContains(response, "DNI 20111222")
+        self.assertContains(response, "CUIT 30546689979")
+        self.assertContains(response, "Calle Falsa 123")
 
-    def test_busqueda_por_dni_exacto_y_con_formato(self):
+    def test_busqueda_por_documento_exacto_y_con_formato(self):
         url = reverse("cliente_list")
 
-        # Búsqueda por DNI con números directos
-        resp_exacto = self.client.get(url, {"q": "20111222"})
-        nombres_exacto = [c.nombre for c in resp_exacto.context["clientes"]]
-        self.assertIn("Carlos Gomez", nombres_exacto)
-        self.assertNotIn("Ana Fernandez", nombres_exacto)
-
-        # Búsqueda por DNI con puntos
+        # Búsqueda por número con formato
         resp_formato = self.client.get(url, {"q": "20.111.222"})
         nombres_formato = [c.nombre for c in resp_formato.context["clientes"]]
         self.assertIn("Carlos Gomez", nombres_formato)
         self.assertNotIn("Ana Fernandez", nombres_formato)
+
+        # Búsqueda CUIT
+        resp_cuit = self.client.get(url, {"q": "30-54668997-9"})
+        nombres_cuit = [c.nombre for c in resp_cuit.context["clientes"]]
+        self.assertIn("Ana Fernandez", nombres_cuit)
+        self.assertNotIn("Carlos Gomez", nombres_cuit)
 
     def test_busqueda_por_nombre_parcial(self):
         url = reverse("cliente_list")
@@ -884,11 +1017,12 @@ class ClienteViewsTest(TestCase):
         self.assertNotIn("Carlos Gomez", nombres)
 
     def test_paginacion_clientes(self):
-        # Crear 25 clientes adicionales
+        # Crear 25 clientes adicionales con DNI válido de 8 dígitos
         for i in range(1, 26):
             Cliente.objects.create(
                 nombre=f"Cliente Paginado {i:02d}",
-                dni=f"500000{i:02d}",
+                tipo_documento="DNI",
+                numero_documento=f"500000{i:02d}",
                 activo=True,
             )
 
@@ -907,4 +1041,5 @@ class ClienteViewsTest(TestCase):
         page_obj2 = response_page2.context["page_obj"]
         self.assertEqual(len(page_obj2), 12)
         self.assertFalse(page_obj2.has_next())
+
 

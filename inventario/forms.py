@@ -44,22 +44,69 @@ class CategoriaForm(forms.ModelForm):
 
 
 class ClienteForm(forms.ModelForm):
+    tipo_documento = forms.ChoiceField(
+        choices=[("", "Seleccionar..."), ("DNI", "DNI"), ("CUIT", "CUIT")],
+        required=True,
+        label="Tipo de documento",
+        widget=forms.Select(attrs={"class": "form-control"}),
+    )
+
     class Meta:
         model = Cliente
-        fields = ["nombre", "dni", "correo", "telefono"]
+        fields = [
+            "nombre",
+            "tipo_documento",
+            "numero_documento",
+            "domicilio",
+            "correo",
+            "telefono",
+        ]
+        labels = {
+            "nombre": "Nombre / Razón social",
+            "tipo_documento": "Tipo de documento",
+            "numero_documento": "CUIT / DNI",
+            "domicilio": "Domicilio de entrega",
+            "correo": "Correo electrónico",
+            "telefono": "Teléfono",
+        }
         widgets = {
-            "nombre": forms.TextInput(attrs={"class": "form-control", "placeholder": "Nombre completo"}),
-            "dni": forms.TextInput(attrs={"class": "form-control", "placeholder": "DNI del cliente"}),
+            "nombre": forms.TextInput(attrs={"class": "form-control", "placeholder": "Nombre o razón social"}),
+            "tipo_documento": forms.Select(attrs={"class": "form-control"}),
+            "numero_documento": forms.TextInput(attrs={"class": "form-control", "placeholder": "Número de documento o CUIT"}),
+            "domicilio": forms.TextInput(attrs={"class": "form-control", "placeholder": "Domicilio de entrega"}),
             "correo": forms.EmailInput(attrs={"class": "form-control", "placeholder": "ejemplo@correo.com"}),
             "telefono": forms.TextInput(attrs={"class": "form-control", "placeholder": "Teléfono de contacto"}),
         }
 
-    def clean_dni(self):
-        dni = self.cleaned_data.get("dni", "")
-        dni_limpio = "".join(c for c in str(dni) if c.isdigit())
-        if not dni_limpio:
-            raise forms.ValidationError("El DNI debe contener al menos un número.")
-        return dni_limpio
+    def clean_numero_documento(self):
+        num = self.cleaned_data.get("numero_documento", "")
+        num_limpio = "".join(c for c in str(num) if c.isdigit())
+        if not num_limpio:
+            raise forms.ValidationError("El número de documento debe contener al menos un dígito.")
+        return num_limpio
+
+    def clean_telefono(self):
+        tel = self.cleaned_data.get("telefono", "")
+        if not tel:
+            return ""
+        tel_limpio = "".join(c for c in str(tel) if c.isdigit())
+        if len(tel_limpio) < 6:
+            raise forms.ValidationError("El teléfono debe contener al menos 6 dígitos.")
+        return tel_limpio
+
+    def clean(self):
+        cleaned_data = super().clean()
+        tipo = cleaned_data.get("tipo_documento")
+        numero = cleaned_data.get("numero_documento")
+
+        if tipo and numero:
+            if tipo == "DNI":
+                if len(numero) not in (7, 8):
+                    self.add_error("numero_documento", "El DNI debe contener 7 u 8 dígitos numéricos.")
+            elif tipo == "CUIT":
+                if len(numero) != 11:
+                    self.add_error("numero_documento", "El CUIT debe contener exactamente 11 dígitos numéricos.")
+        return cleaned_data
 
 
 

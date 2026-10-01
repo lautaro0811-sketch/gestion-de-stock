@@ -136,8 +136,32 @@ class Movimiento(models.Model):
 
 
 class Cliente(models.Model):
-    nombre = models.CharField(max_length=150, verbose_name="Nombre")
-    dni = models.CharField(max_length=20, unique=True, verbose_name="DNI")
+    TIPO_DOC_CHOICES = [
+        ("DNI", "DNI"),
+        ("CUIT", "CUIT"),
+    ]
+
+    nombre = models.CharField(max_length=150, verbose_name="Nombre / Razón social")
+    tipo_documento = models.CharField(
+        max_length=10,
+        choices=TIPO_DOC_CHOICES,
+        null=True,
+        blank=True,
+        verbose_name="Tipo de documento",
+    )
+    numero_documento = models.CharField(
+        max_length=20,
+        unique=True,
+        null=True,
+        blank=True,
+        verbose_name="Número de documento",
+    )
+    domicilio = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="Domicilio de entrega",
+    )
     correo = models.EmailField(blank=True, verbose_name="Correo electrónico")
     telefono = models.CharField(max_length=50, blank=True, verbose_name="Teléfono")
     activo = models.BooleanField(default=True, verbose_name="Activo")
@@ -149,14 +173,39 @@ class Cliente(models.Model):
         ordering = ["nombre"]
 
     def __str__(self):
-        return f"{self.nombre} (DNI: {self.dni})"
+        if self.tipo_documento and self.numero_documento:
+            return f"{self.nombre} ({self.tipo_documento} {self.numero_documento})"
+        return self.nombre
 
     def clean(self):
         super().clean()
-        if self.dni:
-            self.dni = "".join(c for c in str(self.dni) if c.isdigit())
+        if self.numero_documento:
+            self.numero_documento = "".join(c for c in str(self.numero_documento) if c.isdigit())
+        if self.telefono:
+            self.telefono = "".join(c for c in str(self.telefono) if c.isdigit())
+            if len(self.telefono) < 6:
+                raise ValidationError({"telefono": "El teléfono debe contener al menos 6 dígitos."})
+
+        if self.tipo_documento or self.numero_documento:
+            if self.tipo_documento == "DNI":
+                if not self.numero_documento or len(self.numero_documento) not in (7, 8):
+                    raise ValidationError({
+                        "numero_documento": "El DNI debe contener 7 u 8 dígitos numéricos."
+                    })
+            elif self.tipo_documento == "CUIT":
+                if not self.numero_documento or len(self.numero_documento) != 11:
+                    raise ValidationError({
+                        "numero_documento": "El CUIT debe contener exactamente 11 dígitos numéricos."
+                    })
+            else:
+                if not self.tipo_documento:
+                    raise ValidationError({
+                        "tipo_documento": "Debe seleccionar un tipo de documento."
+                    })
 
     def save(self, *args, **kwargs):
-        if self.dni:
-            self.dni = "".join(c for c in str(self.dni) if c.isdigit())
+        if self.numero_documento:
+            self.numero_documento = "".join(c for c in str(self.numero_documento) if c.isdigit())
+        if self.telefono:
+            self.telefono = "".join(c for c in str(self.telefono) if c.isdigit())
         super().save(*args, **kwargs)

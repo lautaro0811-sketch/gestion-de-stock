@@ -168,10 +168,10 @@ def cliente_list_crear(request):
     clientes = Cliente.objects.filter(activo=True)
     query = request.GET.get("q", "").strip()
     if query:
-        filtro = Q(nombre__icontains=query) | Q(dni__icontains=query)
+        filtro = Q(nombre__icontains=query) | Q(numero_documento__icontains=query)
         query_digits = "".join(c for c in query if c.isdigit())
         if query_digits:
-            filtro |= Q(dni__icontains=query_digits)
+            filtro |= Q(numero_documento__icontains=query_digits)
             if query.isdigit():
                 filtro |= Q(id=int(query))
         clientes = clientes.filter(filtro)
