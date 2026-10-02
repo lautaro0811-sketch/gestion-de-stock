@@ -64,6 +64,7 @@
                             <a href="?{% param_replace orden='categoria' dir='asc' %}" class="sortable{% if orden == 'categoria' %} active-sort{% endif %}">Categoría {% if orden == 'categoria' %}↓{% endif %}</a>
                         {% endif %}
                     </th>
+                    <th>Precio</th>
                     <th>
                         {% if orden == 'stock_minimo' and dir == 'asc' %}
                             <a href="?{% param_replace orden='stock_minimo' dir='desc' %}" class="sortable active-sort">Stock Mín. ↑</a>
@@ -92,6 +93,7 @@
                         {% endif %}
                     </td>
                     <td>{{ p.categoria.nombre|default:"Sin categoría" }}</td>
+                    <td class="text-nowrap">${{ p.precio_unitario }}</td>
                     <td>{{ p.stock_minimo }}</td>
                     <td><strong>{{ p.stock_actual }} u.</strong></td>
                     <td>
@@ -112,7 +114,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="6" class="empty-row">No se encontraron productos registrados.</td>
+                    <td colspan="7" class="empty-row">No se encontraron productos registrados.</td>
                 </tr>
                 {% endfor %}
             </tbody>

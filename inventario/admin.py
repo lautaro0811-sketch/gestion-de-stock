@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Categoria, Cliente, Movimiento, Producto
+from .models import Categoria, Cliente, Movimiento, Pedido, PedidoItem, Producto
 
 
 @admin.register(Cliente)
@@ -23,6 +23,7 @@ class ProductoAdmin(admin.ModelAdmin):
         "id",
         "nombre",
         "categoria",
+        "precio_unitario",
         "stock_actual",
         "stock_minimo",
         "alerta_stock_bajo",
@@ -76,4 +77,47 @@ class MovimientoAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         """No se permite eliminar registros históricos de movimientos."""
+        return False
+
+
+class PedidoItemInline(admin.TabularInline):
+    model = PedidoItem
+    extra = 0
+    readonly_fields = ("producto", "cantidad", "precio_unitario", "subtotal")
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(Pedido)
+class PedidoAdmin(admin.ModelAdmin):
+    list_display = (
+        "numero_operacion",
+        "cliente",
+        "fecha",
+        "estado",
+        "total",
+        "fecha_creacion",
+    )
+    list_filter = ("estado", "fecha")
+    search_fields = ("numero_operacion", "cliente__nombre")
+    readonly_fields = (
+        "numero_operacion",
+        "cliente",
+        "fecha",
+        "estado",
+        "observacion",
+        "fecha_creacion",
+        "fecha_actualizacion",
+    )
+    inlines = [PedidoItemInline]
+    actions = None
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
         return False

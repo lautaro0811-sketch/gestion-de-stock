@@ -26,3 +26,5 @@ _Lo que esta feature NO incluye, para evitar que crezca. Si algo se difiere, enl
 
 - La alteración de los saldos de inventario. El registro operativo de Entradas, Salidas y Ajustes de stock se implementará en la feature `002-movimientos`[cite: 2].
 - La vista de auditoría cronológica (historial de movimientos), que también pertenece al módulo de movimientos[cite: 2].
+
+> **Nota de evolución (Feature 008 - Pedidos de Venta):** Se extendió el modelo `Producto` incorporando el campo `precio_unitario` (Decimal, default 0.00) para congelar el valor comercial en los ítems de venta.

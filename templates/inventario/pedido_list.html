@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+
+{% block title %}Pedidos de Venta{% endblock %}
+{% block topbar_title %}Gestión de Pedidos y Ventas{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header-flex">
+        <h2 class="card-title">Listado de Pedidos</h2>
+        <div class="action-bar">
+            <a href="{% url 'pedido_crear' %}" class="btn btn-success">+ Nuevo Pedido de Venta</a>
+        </div>
+    </div>
+
+    <!-- Barra de Filtros -->
+    <form method="get" class="filter-form">
+        <div class="filter-input-main">
+            <label class="form-label">Buscar</label>
+            <input type="text" name="q" value="{{ query }}" placeholder="N° de operación, cliente o documento..." class="form-control">
+        </div>
+
+        <div class="filter-input-sec">
+            <label class="form-label">Estado</label>
+            <select name="estado" class="form-control">
+                <option value="">Todos los estados</option>
+                {% for valor, etiqueta in estados %}
+                    <option value="{{ valor }}" {% if estado_seleccionado == valor %}selected{% endif %}>{{ etiqueta }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <button type="submit" class="btn btn-primary">Filtrar</button>
+            {% if query or estado_seleccionado %}
+                <a href="{% url 'pedido_list' %}" class="btn btn-secondary">Limpiar</a>
+            {% endif %}
+        </div>
+    </form>
+
+    <!-- Tabla de Pedidos -->
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>N° Operación</th>
+                    <th>Fecha</th>
+                    <th>Cliente</th>
+                    <th>Ítems</th>
+                    <th>Total</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pedido in pedidos %}
+                <tr>
+                    <td class="text-nowrap">
+                        <a href="{% url 'pedido_detalle' pedido.id %}" class="table-link">
+                            <strong>#{{ pedido.numero_operacion }}</strong>
+                        </a>
+                    </td>
+                    <td class="text-nowrap">{{ pedido.fecha|date:"d/m/Y H:i" }}</td>
+                    <td>
+                        <strong>{{ pedido.cliente.nombre }}</strong>
+                        {% if pedido.cliente.numero_documento %}
+                            <div class="form-desc">{{ pedido.cliente.tipo_documento }}: {{ pedido.cliente.numero_documento }}</div>
+                        {% endif %}
+                    </td>
+                    <td>{{ pedido.items.count }} art.</td>
+                    <td class="text-nowrap"><strong>${{ pedido.total|floatformat:2 }}</strong></td>
+                    <td>
+                        {% if pedido.estado == 'CONFIRMADO' %}
+                            <span class="badge badge-success">Confirmado</span>
+                        {% elif pedido.estado == 'CANCELADO' %}
+                            <span class="badge badge-danger">Cancelado</span>
+                        {% else %}
+                            <span class="badge">{{ pedido.estado }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-nowrap">
+                        <a href="{% url 'pedido_detalle' pedido.id %}" class="btn btn-action btn-sm">Ver Detalle</a>
+                        {% if pedido.estado == 'CONFIRMADO' %}
+                            <a href="{% url 'pedido_cancelar' pedido.id %}" class="btn btn-danger btn-sm">Cancelar</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="empty-row">No se encontraron pedidos de venta registrados.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Paginación -->
+    {% include 'inventario/includes/pagination.html' %}
+</div>
+{% endblock %}
+

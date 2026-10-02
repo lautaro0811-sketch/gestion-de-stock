@@ -1,0 +1,207 @@
+{% extends 'base.html' %}
+
+{% block title %}Nuevo Pedido de Venta{% endblock %}
+{% block topbar_title %}Registrar Nuevo Pedido de Venta{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header-flex">
+        <h2 class="card-title">Datos del Pedido</h2>
+    </div>
+
+    <form method="post" id="pedido-form">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+
+        <!-- Cabecera del Pedido -->
+        <div class="form-grid-row">
+            <div class="form-group">
+                <label class="form-label">Cliente *</label>
+                {{ form.cliente }}
+                {{ form.cliente.errors }}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Fecha de Venta *</label>
+                {{ form.fecha }}
+                {{ form.fecha.errors }}
+            </div>
+        </div>
+
+        <div class="form-full-row">
+            <div class="form-group">
+                <label class="form-label">Observaciones (Opcional)</label>
+                {{ form.observacion }}
+                {{ form.observacion.errors }}
+            </div>
+        </div>
+
+        <!-- Tabla Dinámica de Ítems -->
+        <div class="card-header-flex" style="margin-top: 24px;">
+            <h3 class="card-title" style="font-size: 1.05rem;">Artículos del Pedido</h3>
+            <button type="button" id="btn-add-item" class="btn btn-primary btn-sm">+ Agregar Producto</button>
+        </div>
+
+        {{ formset.management_form }}
+        {{ formset.non_form_errors }}
+
+        <div class="table-responsive" style="margin-bottom: 20px;">
+            <table id="items-table">
+                <thead>
+                    <tr>
+                        <th style="width:40%;">Producto</th>
+                        <th style="width:15%;">Stock Disp.</th>
+                        <th style="width:15%;">Precio Unit.</th>
+                        <th style="width:15%;">Cantidad</th>
+                        <th style="width:10%;">Subtotal</th>
+                        <th style="width:5%;"></th>
+                    </tr>
+                </thead>
+                <tbody id="items-tbody">
+                    {% for item_form in formset %}
+                    <tr class="item-row">
+                        <td>
+                            {{ item_form.id }}
+                            {{ item_form.producto }}
+                            {{ item_form.producto.errors }}
+                        </td>
+                        <td><span class="stock-disponible text-muted">—</span></td>
+                        <td><span class="precio-unitario-display text-muted">$0.00</span></td>
+                        <td>
+                            {{ item_form.cantidad }}
+                            {{ item_form.cantidad.errors }}
+                        </td>
+                        <td><strong class="subtotal-display">$0.00</strong></td>
+                        <td>
+                            {% if formset.can_delete %}
+                                <span style="display:none;">{{ item_form.DELETE }}</span>
+                            {% endif %}
+                            <button type="button" class="btn btn-danger btn-sm btn-remove-row" title="Eliminar fila">&times;</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr style="background-color: var(--color-table-header-bg); font-weight:bold;">
+                        <td colspan="4" style="text-align:right; font-size:1rem;">TOTAL:</td>
+                        <td colspan="2" style="font-size:1.1rem; color: var(--color-btn-primary);">
+                            <span id="pedido-total-display">$0.00</span>
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <div class="form-actions">
+            <a href="{% url 'pedido_list' %}" class="btn btn-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-success">Confirmar y Generar Pedido</button>
+        </div>
+    </form>
+</div>
+
+{{ productos_json|json_script:"productos-catalogo-data" }}
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const productosData = JSON.parse(document.getElementById("productos-catalogo-data").textContent || "[]");
+    const productosMap = {};
+    productosData.forEach(function(p) { productosMap[p.id] = p; });
+
+    const tbody = document.getElementById("items-tbody");
+    const btnAdd = document.getElementById("btn-add-item");
+    const totalFormsInput = document.getElementById("id_items-TOTAL_FORMS");
+
+    function actualizarFila(row) {
+        var selectProd = row.querySelector(".item-producto");
+        var inputCant = row.querySelector(".item-cantidad");
+        var spanStock = row.querySelector(".stock-disponible");
+        var spanPrecio = row.querySelector(".precio-unitario-display");
+        var spanSubtotal = row.querySelector(".subtotal-display");
+
+        var prodId = selectProd ? selectProd.value : "";
+        var cant = inputCant ? (parseInt(inputCant.value, 10) || 0) : 0;
+
+        if (prodId && productosMap[prodId]) {
+            var p = productosMap[prodId];
+            spanStock.textContent = p.stock + " u.";
+            spanStock.className = "stock-disponible " + (p.stock < cant ? "text-danger" : "text-muted");
+            spanPrecio.textContent = "$" + parseFloat(p.precio).toFixed(2);
+            spanSubtotal.textContent = "$" + (cant * parseFloat(p.precio)).toFixed(2);
+        } else {
+            spanStock.textContent = "—";
+            spanPrecio.textContent = "$0.00";
+            spanSubtotal.textContent = "$0.00";
+        }
+        calcularTotal();
+    }
+
+    function calcularTotal() {
+        var total = 0;
+        tbody.querySelectorAll(".item-row").forEach(function(row) {
+            if (row.style.display === "none") return;
+            var selectProd = row.querySelector(".item-producto");
+            var inputCant = row.querySelector(".item-cantidad");
+            var prodId = selectProd ? selectProd.value : "";
+            var cant = inputCant ? (parseInt(inputCant.value, 10) || 0) : 0;
+            if (prodId && productosMap[prodId]) {
+                total += cant * parseFloat(productosMap[prodId].precio);
+            }
+        });
+        document.getElementById("pedido-total-display").textContent = "$" + total.toFixed(2);
+    }
+
+    function hookRowEvents(row) {
+        var selectProd = row.querySelector(".item-producto");
+        var inputCant = row.querySelector(".item-cantidad");
+        var btnRemove = row.querySelector(".btn-remove-row");
+
+        if (selectProd) selectProd.addEventListener("change", function() { actualizarFila(row); });
+        if (inputCant) inputCant.addEventListener("input", function() { actualizarFila(row); });
+
+        if (btnRemove) {
+            btnRemove.addEventListener("click", function() {
+                var visibleRows = tbody.querySelectorAll(".item-row:not([style*='display: none'])").length;
+                var deleteCheck = row.querySelector("input[name$='-DELETE']");
+                if (deleteCheck) {
+                    deleteCheck.checked = true;
+                    row.style.display = "none";
+                } else if (visibleRows > 1) {
+                    row.remove();
+                } else {
+                    if (selectProd) selectProd.value = "";
+                    if (inputCant) inputCant.value = "1";
+                    actualizarFila(row);
+                }
+                calcularTotal();
+            });
+        }
+        actualizarFila(row);
+    }
+
+    tbody.querySelectorAll(".item-row").forEach(hookRowEvents);
+
+    btnAdd.addEventListener("click", function() {
+        var currentCount = parseInt(totalFormsInput.value, 10);
+        var rows = tbody.querySelectorAll(".item-row");
+        if (rows.length === 0) return;
+
+        var templateRow = rows[0].cloneNode(true);
+        templateRow.style.display = "";
+
+        templateRow.querySelectorAll("input, select").forEach(function(input) {
+            if (input.name) input.name = input.name.replace(/-\d+-/, "-" + currentCount + "-");
+            if (input.id) input.id = input.id.replace(/-\d+-/, "-" + currentCount + "-");
+            if (input.type !== "hidden") {
+                input.value = input.classList.contains("item-cantidad") ? "1" : "";
+            }
+            if (input.name && input.name.endsWith("-DELETE")) input.checked = false;
+        });
+
+        templateRow.querySelectorAll(".errorlist, .field-error").forEach(function(el) { el.remove(); });
+
+        tbody.appendChild(templateRow);
+        totalFormsInput.value = currentCount + 1;
+        hookRowEvents(templateRow);
+    });
+});
+</script>
+{% endblock %}

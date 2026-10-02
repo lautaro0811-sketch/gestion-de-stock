@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Control de Inventario{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=2">
 </head>
 <body>
     <div class="app-layout">
@@ -32,6 +32,9 @@
                 </a>
                 <a href="{% url 'cliente_list' %}" class="sidebar-link {% if request.resolver_match.url_name == 'cliente_list' %}active{% endif %}">
                     👥 Clientes
+                </a>
+                <a href="{% url 'pedido_list' %}" class="sidebar-link {% if 'pedido' in request.resolver_match.url_name %}active{% endif %}">
+                    🛒 Pedidos de Venta
                 </a>
             </nav>
 

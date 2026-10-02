@@ -13,13 +13,21 @@ from django.utils import timezone
 from .forms import (
     CategoriaForm,
     ClienteForm,
+    ItemPedidoFormSet,
     MovimientoUnificadoForm,
+    PedidoForm,
     ProductoCrearForm,
     ProductoEditarForm,
 )
-from .models import Categoria, Cliente, Movimiento, Producto
+from .models import Categoria, Cliente, Movimiento, Pedido, PedidoItem, Producto
 
-from .services import registrar_ajuste, registrar_entrada, registrar_salida
+from .services import (
+    cancelar_pedido,
+    crear_pedido,
+    registrar_ajuste,
+    registrar_entrada,
+    registrar_salida,
+)
 
 
 # --- PRODUCTOS ---
@@ -285,7 +293,7 @@ def movimiento_historial(request):
     tipo_filtro = request.GET.get("tipo", "").strip()
     producto_filtro = request.GET.get("producto", "").strip()
 
-    movimientos = Movimiento.objects.select_related("producto__categoria", "created_by").all()
+    movimientos = Movimiento.objects.select_related("producto__categoria", "created_by", "pedido").all()
 
     if tipo_filtro:
         movimientos = movimientos.filter(tipo=tipo_filtro)
@@ -311,6 +319,147 @@ def movimiento_historial(request):
             "producto_seleccionado": producto_filtro,
         },
     )
+
+# --- PEDIDOS DE VENTA ---
+def pedido_list(request):
+    pedidos = Pedido.objects.select_related("cliente").prefetch_related("items__producto").all()
+    query = request.GET.get("q", "").strip()
+    estado = request.GET.get("estado", "").strip()
+
+    if query:
+        pedidos = pedidos.filter(
+            Q(numero_operacion__icontains=query)
+            | Q(cliente__nombre__icontains=query)
+            | Q(cliente__numero_documento__icontains=query)
+        )
+    if estado:
+        pedidos = pedidos.filter(estado=estado)
+
+    paginator = Paginator(pedidos, 15)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    return render(
+        request,
+        "inventario/pedido_list.html",
+        {
+            "pedidos": page_obj,
+            "page_obj": page_obj,
+            "query": query,
+            "estado_seleccionado": estado,
+            "estados": Pedido.EstadoPedido.choices,
+        },
+    )
+
+
+@transaction.atomic
+def pedido_crear(request):
+    if request.method == "POST":
+        form = PedidoForm(request.POST)
+        formset = ItemPedidoFormSet(request.POST)
+        if form.is_valid() and formset.is_valid():
+            cliente = form.cleaned_data["cliente"]
+            fecha_date = form.cleaned_data["fecha"]
+            observacion = form.cleaned_data.get("observacion", "")
+
+            hora_actual = timezone.now().time()
+            fecha_completa = timezone.make_aware(
+                datetime.combine(fecha_date, hora_actual)
+            )
+            usuario = request.user if request.user.is_authenticated else None
+
+            # Extraer ítems válidos
+            items_data = []
+            for item_form in formset:
+                if item_form.cleaned_data and not item_form.cleaned_data.get("DELETE", False):
+                    producto = item_form.cleaned_data.get("producto")
+                    cantidad = item_form.cleaned_data.get("cantidad")
+                    if producto and cantidad and cantidad > 0:
+                        items_data.append({
+                            "producto_id": producto.id,
+                            "cantidad": cantidad,
+                            "precio_unitario": producto.precio_unitario,
+                        })
+
+            if not items_data:
+                messages.error(request, "Debe agregar al menos un producto al pedido.")
+            else:
+                try:
+                    pedido = crear_pedido(
+                        cliente_id=cliente.id,
+                        items_data=items_data,
+                        usuario=usuario,
+                        fecha=fecha_completa,
+                        observacion=observacion,
+                    )
+                    messages.success(
+                        request,
+                        f"Pedido #{pedido.numero_operacion} registrado exitosamente para '{cliente.nombre}'."
+                    )
+                    return redirect("pedido_detalle", pk=pedido.pk)
+                except ValidationError as e:
+                    err_msg = e.message if hasattr(e, "message") else ", ".join(e.messages)
+                    messages.error(request, err_msg)
+                    form.add_error(None, err_msg)
+    else:
+        form = PedidoForm()
+        formset = ItemPedidoFormSet()
+
+    productos = list(Producto.objects.filter(activo=True).order_by("nombre"))
+    productos_json = [
+        {"id": p.id, "nombre": p.nombre, "precio": float(p.precio_unitario), "stock": p.stock_actual}
+        for p in productos
+    ]
+
+    return render(
+        request,
+        "inventario/pedido_form.html",
+        {
+            "form": form,
+            "formset": formset,
+            "productos": productos,
+            "productos_json": productos_json,
+        },
+    )
+
+
+def pedido_detalle(request, pk):
+    pedido = get_object_or_404(
+        Pedido.objects.select_related("cliente").prefetch_related(
+            "items__producto", "movimientos__producto", "movimientos__created_by"
+        ),
+        pk=pk,
+    )
+    return render(
+        request,
+        "inventario/pedido_detalle.html",
+        {"pedido": pedido},
+    )
+
+
+def pedido_cancelar(request, pk):
+    pedido = get_object_or_404(Pedido, pk=pk)
+    if request.method == "POST":
+        motivo = request.POST.get("motivo", "").strip()
+        usuario = request.user if request.user.is_authenticated else None
+        try:
+            cancelar_pedido(pedido_id=pedido.id, usuario=usuario, motivo=motivo)
+            messages.success(
+                request,
+                f"Pedido #{pedido.numero_operacion} cancelado correctamente. El stock ha sido restituido."
+            )
+            return redirect("pedido_detalle", pk=pedido.pk)
+        except ValidationError as e:
+            err_msg = e.message if hasattr(e, "message") else ", ".join(e.messages)
+            messages.error(request, err_msg)
+            return redirect("pedido_detalle", pk=pedido.pk)
+
+    return render(
+        request,
+        "inventario/pedido_confirm_cancel.html",
+        {"pedido": pedido},
+    )
+
 
 @transaction.atomic
 def export_csv(request):
@@ -342,7 +491,7 @@ def export_csv(request):
     response = HttpResponse(content_type="text/csv")
     response["Content-Disposition"] = "attachment; filename=productos.csv"
     writer = csv.writer(response)
-    writer.writerow(["ID", "Nombre", "Descripción", "Categoría", "Stock Mínimo", "Stock Actual", "Estado"])
+    writer.writerow(["ID", "Nombre", "Descripción", "Categoría", "Precio Unitario", "Stock Mínimo", "Stock Actual", "Estado"])
     for p in productos_qs:
         estado = "Sin Stock" if p.stock_actual == 0 else ("Stock Bajo" if p.stock_bajo else "Normal")
         writer.writerow([
@@ -350,8 +499,10 @@ def export_csv(request):
             p.nombre,
             p.descripcion,
             p.categoria.nombre if p.categoria else "",
+            f"${p.precio_unitario:.2f}",
             p.stock_minimo,
             p.stock_actual,
             estado,
         ])
     return response
+

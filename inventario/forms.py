@@ -1,16 +1,21 @@
 from django import forms
+from django.forms import inlineformset_factory
 from django.utils import timezone
 
-from .models import Categoria, Cliente, Movimiento, Producto
+from .models import Categoria, Cliente, Movimiento, Pedido, PedidoItem, Producto
 
 
 class ProductoBaseForm(forms.ModelForm):
     class Meta:
         model = Producto
-        fields = ["nombre", "categoria", "stock_minimo", "descripcion"]
+        fields = ["nombre", "categoria", "precio_unitario", "stock_minimo", "descripcion"]
+        labels = {
+            "precio_unitario": "Precio Unitario ($)",
+        }
         widgets = {
             "nombre": forms.TextInput(attrs={"class": "form-control", "placeholder": "Nombre del producto"}),
             "categoria": forms.Select(attrs={"class": "form-control"}),
+            "precio_unitario": forms.NumberInput(attrs={"class": "form-control", "min": 0, "step": "0.01", "placeholder": "0.00"}),
             "stock_minimo": forms.NumberInput(attrs={"class": "form-control", "min": 0}),
             "descripcion": forms.Textarea(attrs={"class": "form-control", "rows": 3, "placeholder": "Descripción..."}),
         }
@@ -170,3 +175,51 @@ class MovimientoUnificadoForm(forms.Form):
                 )
 
         return cleaned_data
+
+
+class PedidoForm(forms.ModelForm):
+    class Meta:
+        model = Pedido
+        fields = ["cliente", "fecha", "observacion"]
+        labels = {
+            "cliente": "Cliente",
+            "fecha": "Fecha de pedido",
+            "observacion": "Observaciones",
+        }
+        widgets = {
+            "cliente": forms.Select(attrs={"class": "form-control"}),
+            "fecha": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+            "observacion": forms.Textarea(attrs={"class": "form-control", "rows": 2, "placeholder": "Observaciones opcionales..."}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["cliente"].queryset = Cliente.objects.filter(activo=True).order_by("nombre")
+        if not self.initial.get("fecha"):
+            self.initial["fecha"] = timezone.now().date()
+
+
+class ItemPedidoForm(forms.ModelForm):
+    class Meta:
+        model = PedidoItem
+        fields = ["producto", "cantidad"]
+        widgets = {
+            "producto": forms.Select(attrs={"class": "form-control item-producto"}),
+            "cantidad": forms.NumberInput(attrs={"class": "form-control item-cantidad", "min": 1, "value": 1}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["producto"].queryset = Producto.objects.filter(activo=True).order_by("nombre")
+
+
+ItemPedidoFormSet = inlineformset_factory(
+    Pedido,
+    PedidoItem,
+    form=ItemPedidoForm,
+    fields=["producto", "cantidad"],
+    extra=1,
+    can_delete=True,
+)
+
+PedidoItemFormSet = ItemPedidoFormSet
