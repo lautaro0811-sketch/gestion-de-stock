@@ -10,6 +10,7 @@ _Features completadas, en orden de implementación._
 2. **002 · Movimientos e Historial** — Lógica centralizada y transaccional para registrar Entradas, Salidas y Ajustes físicos, junto con la auditoría cronológica unificada[cite: 2, 3].
 3. **003 · Interfaz Dashboard** — Layout estructurado con barra lateral (sidebar), variables CSS y tarjetas limpias sin usar frameworks externos pesados[cite: 3].
 4. **007 · Clientes** — Padrón y gestión de clientes con normalización de DNI, búsqueda y baja lógica.
+5. **009 · Generación de Pedido en PDF (Remito)** — Descarga de remitos PDF para pedidos con datos del cliente, operación y detalle de ítems.
 
 
 ## Siguiente 🔜

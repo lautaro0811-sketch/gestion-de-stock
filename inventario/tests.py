@@ -1344,6 +1344,21 @@ class PedidosViewsAndFormsTest(TestCase):
         self.assertContains(response, "Escoba Plástica")
         self.assertContains(response, "$1900,00")
 
+    def test_pedido_pdf_view_retorna_pdf_descargable(self):
+        pedido = crear_pedido(
+            cliente_id=self.cliente.id,
+            items_data=[{"producto_id": self.producto.id, "cantidad": 2}],
+        )
+
+        response = self.client.get(reverse("pedido_pdf", kwargs={"pk": pedido.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertTrue(response.content.startswith(b"%PDF"))
+        self.assertIn(
+            f'Remito_{pedido.numero_operacion}.pdf', response["Content-Disposition"]
+        )
+
     def test_pedido_cancelar_view_post(self):
         self.client.login(username="operador_ventas", password="password123")
         pedido = crear_pedido(

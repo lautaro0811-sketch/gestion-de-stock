@@ -423,3 +423,130 @@ tr.row-normal     { background-color: var(--color-row-normal-bg); }
     text-decoration: underline;
 }
 
+/* Remito PDF: xhtml2pdf no procesa variables CSS; los colores quedan centralizados aquí. */
+@page {
+    size: A4 portrait;
+    margin: 2cm;
+}
+
+body.remito-pdf {
+    color: #333333;
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 13px;
+}
+
+.remito-pdf .header-table {
+    border-bottom: 2px solid #2563eb;
+    margin-bottom: 30px;
+    padding-bottom: 15px;
+}
+
+.remito-pdf .company-cell {
+    width: 60%;
+    vertical-align: top;
+}
+
+.remito-pdf .document-cell {
+    width: 40%;
+    vertical-align: top;
+}
+
+.remito-pdf .company-title {
+    color: #2563eb;
+    font-size: 26px;
+    font-weight: bold;
+}
+
+.remito-pdf .company-details {
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.4;
+    margin-top: 5px;
+}
+
+.remito-pdf .doc-type {
+    font-size: 22px;
+    font-weight: bold;
+    margin-bottom: 5px;
+    text-align: right;
+}
+
+.remito-pdf .doc-meta {
+    font-size: 13px;
+    line-height: 1.5;
+    text-align: right;
+}
+
+.remito-pdf .client-block {
+    line-height: 1.5;
+    margin-bottom: 24px;
+}
+
+.remito-pdf .client-title {
+    color: #2563eb;
+    font-size: 12px;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.remito-pdf .client-name {
+    font-weight: bold;
+}
+
+.remito-pdf .items-table {
+    width: 100%;
+}
+
+.remito-pdf .items-table th {
+    background-color: #2563eb;
+    color: #ffffff;
+    font-size: 12px;
+    padding: 10px;
+    text-align: left;
+}
+
+.remito-pdf .items-table td {
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 13px;
+    padding: 10px;
+}
+
+.remito-pdf .quantity-cell {
+    text-align: center !important;
+    width: 15%;
+}
+
+.remito-pdf .product-cell {
+    width: 45%;
+}
+
+.remito-pdf .unit-price-cell {
+    text-align: right !important;
+    width: 20%;
+}
+
+.remito-pdf .subtotal-cell {
+    text-align: right !important;
+    width: 20%;
+}
+
+.remito-pdf .items-table .total-row td {
+    border-bottom: 0;
+    border-top: 2px solid #2563eb;
+    font-size: 18px;
+    font-weight: bold;
+    padding-top: 15px;
+}
+
+.remito-pdf .items-table .total-label {
+    text-align: right !important;
+}
+
+.remito-pdf .footer-text {
+    color: #64748b;
+    font-size: 15px;
+    font-weight: bold;
+    margin-top: 60px;
+    text-align: center;
+}
+

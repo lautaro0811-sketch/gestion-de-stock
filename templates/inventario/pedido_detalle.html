@@ -60,6 +60,7 @@
 
 <div class="form-actions">
     <a href="{% url 'pedido_list' %}" class="btn btn-secondary">Volver al listado</a>
+    <a href="{% url 'pedido_pdf' pedido.id %}" class="btn btn-primary">Generar Remito</a>
     
     {% if pedido.estado == 'CONFIRMADO' %}
         <a href="{% url 'pedido_cancelar' pedido.id %}" class="btn btn-danger">Cancelar Pedido</a>
