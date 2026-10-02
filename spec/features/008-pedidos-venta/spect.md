@@ -14,14 +14,14 @@ Es el motor transaccional comercial del sistema. Sustituye la necesidad de carga
 
 _Condiciones verificables que deben cumplirse para dar la feature por terminada. Redacta cada una de forma que se pueda comprobar con un sí/no. Marca `[x]` al cumplirse._
 
-- [ ] El modelo `Producto` incluye ahora un campo `precio_unitario`.
-- [ ] Se pueden crear Pedidos (estado `CONFIRMADO`) seleccionando un Cliente y agregando múltiples ítems (producto, cantidad).
+- [x] El modelo `Producto` incluye ahora un campo `precio_unitario`.
+- [x] Se pueden crear Pedidos (estado `CONFIRMADO`) seleccionando un Cliente y agregando múltiples ítems (producto, cantidad).
 - [ ] Al guardar un Pedido, se le asigna de manera segura un número de operación con formato `AÑO-XXXX` (ej. 2026-0001).
-- [ ] Cada ítem del pedido copia y congela el `precio_unitario` del catálogo y calcula su subtotal.
-- [ ] La creación del pedido dispara internamente movimientos de tipo `SALIDA` para cada ítem, vinculados al pedido.
-- [ ] No se pueden editar pedidos existentes: la inmutabilidad rige. Solo se pueden visualizar o cancelar.
-- [ ] Al cancelar un pedido, su estado cambia a `CANCELADO` y se generan movimientos compensatorios de `ENTRADA` por cada ítem.
-- [ ] Los movimientos en el historial general de stock (`002-movimientos`) muestran a qué número de pedido pertenecen si corresponden a una venta o cancelación.
+- [x] Cada ítem del pedido copia y congela el `precio_unitario` del catálogo y calcula su subtotal.
+- [x] La creación del pedido dispara internamente movimientos de tipo `SALIDA` para cada ítem, vinculados al pedido.
+- [x] No se pueden editar pedidos existentes: la inmutabilidad rige. Solo se pueden visualizar o cancelar.
+- [x] Al cancelar un pedido, su estado cambia a `CANCELADO` y se generan movimientos compensatorios de `ENTRADA` por cada ítem.
+- [x] Los movimientos en el historial general de stock (`002-movimientos`) muestran a qué número de pedido pertenecen si corresponden a una venta o cancelación.
 
 ## Fuera de alcance
 

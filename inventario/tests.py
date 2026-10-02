@@ -349,6 +349,7 @@ class MovimientoViewsAuditoriaTest(TestCase):
             "nombre": "Tornillos Phillips",
             "descripcion": "Caja x 100",
             "categoria": self.cat.id,
+            "precio_unitario": "0.00",
             "stock_minimo": 5,
             "stock_inicial": 20,
         }
@@ -469,6 +470,7 @@ class CatalogoReglasNegocioTest(TestCase):
             "nombre": "Lavandina Concentrada Plus",
             "descripcion": "Fórmula mejorada",
             "categoria": self.cat.id,
+            "precio_unitario": str(self.prod.precio_unitario),
             "stock_minimo": 4,
             "stock_actual": 999,  # Intento malicioso de modificar stock_actual
         }
@@ -1340,7 +1342,7 @@ class PedidosViewsAndFormsTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, pedido.numero_operacion)
         self.assertContains(response, "Escoba Plástica")
-        self.assertContains(response, "$1900.00")
+        self.assertContains(response, "$1900,00")
 
     def test_pedido_cancelar_view_post(self):
         self.client.login(username="operador_ventas", password="password123")
