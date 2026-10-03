@@ -1,6 +1,6 @@
 # 008 · Pedidos de Venta
 
-**Estado:** propuesta
+**Estado:** implementado ✅
 
 ## Qué hace
 
@@ -16,7 +16,7 @@ _Condiciones verificables que deben cumplirse para dar la feature por terminada.
 
 - [x] El modelo `Producto` incluye ahora un campo `precio_unitario`.
 - [x] Se pueden crear Pedidos (estado `CONFIRMADO`) seleccionando un Cliente y agregando múltiples ítems (producto, cantidad).
-- [ ] Al guardar un Pedido, se le asigna de manera segura un número de operación con formato `AÑO-XXXX` (ej. 2026-0001).
+- [x] Al guardar un Pedido, se le asigna de manera segura un número de operación con formato `AÑO-XXXX` (ej. 2026-0001).
 - [x] Cada ítem del pedido copia y congela el `precio_unitario` del catálogo y calcula su subtotal.
 - [x] La creación del pedido dispara internamente movimientos de tipo `SALIDA` para cada ítem, vinculados al pedido.
 - [x] No se pueden editar pedidos existentes: la inmutabilidad rige. Solo se pueden visualizar o cancelar.

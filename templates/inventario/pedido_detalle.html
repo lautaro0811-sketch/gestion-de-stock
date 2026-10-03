@@ -14,9 +14,9 @@
     <div class="grid-two-col mb-16">
         <div>
             <p class="text-muted">Cliente</p>
-            <p><strong>{{ pedido.cliente.nombre }}</strong></p>
-            {% if pedido.cliente.dni %}
-            <p class="text-muted"><small>DNI: {{ pedido.cliente.dni }}</small></p>
+            <p><strong>{{ pedido.cliente_nombre }}</strong></p>
+            {% if pedido.cliente_numero_documento %}
+            <p class="text-muted"><small>{{ pedido.cliente_tipo_documento }}: {{ pedido.cliente_numero_documento }}</small></p>
             {% endif %}
         </div>
         <div>
@@ -40,7 +40,7 @@
         <tbody>
             {% for item in pedido.items.all %}
             <tr>
-                <td>{{ item.producto.nombre }}</td>
+                <td>{{ item.producto_nombre }}</td>
                 <td class="text-center">{{ item.cantidad }}</td>
                 <td class="text-center">${{ item.precio_unitario }}</td>
                 <td class="text-center"><strong>${{ item.subtotal }}</strong></td>
@@ -60,6 +60,7 @@
 
 <div class="form-actions">
     <a href="{% url 'pedido_list' %}" class="btn btn-secondary">Volver al listado</a>
+    <a href="{% url 'pedido_pdf' pedido.id %}" class="btn btn-primary">Generar Remito</a>
     
     {% if pedido.estado == 'CONFIRMADO' %}
         <a href="{% url 'pedido_cancelar' pedido.id %}" class="btn btn-danger">Cancelar Pedido</a>

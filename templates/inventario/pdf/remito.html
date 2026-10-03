@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Ticket {{ pedido.numero_operacion }}</title>
+    <style>
+        @page {
+            size: 80mm 297mm;
+            margin: 5mm;
+        }
+        body {
+            color: #000;
+            font-family: "Courier New", Courier, monospace;
+            font-size: 12px;
+            line-height: 1.3;
+            margin: 0;
+        }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .divider {
+            border-top: 1px dashed #000;
+            margin: 16px 0;
+        }
+        .client-details {
+            margin-top: 14px;
+        }
+        header {
+            line-height: 1.5;
+        }
+        table {
+            width: 100%;
+        }
+        th {
+            border-bottom: 1px dashed #000;
+            font-size: 11px;
+            padding-bottom: 8px;
+            text-align: left;
+        }
+        td {
+            font-size: 12px;
+            padding: 9px 0;
+            vertical-align: top;
+        }
+        .quantity-cell { width: 15%; }
+        .product-cell { width: 55%; }
+        .subtotal-cell { width: 30%; }
+        .unit-price {
+            font-size: 10px;
+            margin-top: 3px;
+        }
+        .total-box {
+            font-size: 15px;
+            font-weight: bold;
+            margin-top: 16px;
+            text-align: right;
+        }
+        .footer {
+            color: #333;
+            font-size: 10px;
+            margin-top: 30px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <header class="text-center">
+        <div class="title">Tienda de limpieza</div>
+        <div>Ticket de Venta</div>
+        <div>----------------</div>
+        <div>Nº Operación: {{ pedido.numero_operacion }}</div>
+        <div>Fecha: {{ pedido.fecha|date:"d/m/Y H:i" }}</div>
+        <div>Estado: {{ pedido.get_estado_display }}</div>
+        <div class="client-details">
+            Cliente: {{ pedido.cliente_nombre }}
+            {% if pedido.cliente_numero_documento %}
+                <br>{{ pedido.cliente_tipo_documento }}: {{ pedido.cliente_numero_documento }}
+            {% endif %}
+            {% if pedido.cliente_telefono %}
+                <br>Teléfono: {{ pedido.cliente_telefono }}
+            {% endif %}
+        </div>
+    </header>
+
+    <div class="divider"></div>
+
+    <table aria-label="Detalle de productos">
+        <thead>
+            <tr>
+                <th class="quantity-cell text-center">CANT.</th>
+                <th class="product-cell">ARTÍCULO</th>
+                <th class="subtotal-cell text-right">SUBT.</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in pedido.items.all %}
+                <tr>
+                    <td class="quantity-cell text-center">{{ item.cantidad }}</td>
+                    <td class="product-cell">
+                        {{ item.producto_nombre }}
+                        <div class="unit-price">Unitario: ${{ item.precio_unitario|floatformat:2 }}</div>
+                    </td>
+                    <td class="subtotal-cell text-right">${{ item.subtotal|floatformat:2 }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="divider"></div>
+
+    <div class="total-box">TOTAL: ${{ pedido.total|floatformat:2 }}</div>
+
+    <footer class="footer">
+        ¡Gracias por su compra!<br><br>
+        * Documento no válido como factura *
+    </footer>
+</body>
+</html>

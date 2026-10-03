@@ -1,14 +1,20 @@
 import csv
+import sqlite3
 from datetime import datetime
+from io import BytesIO
 
+from django.conf import settings
 from django.contrib import messages
+from django.contrib.staticfiles import finders
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.db import transaction
+from django.db import connection, transaction
 from django.db.models import F, Q, Count
-from django.http import HttpResponse
+from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.utils import timezone
+from xhtml2pdf import pisa
 
 from .forms import (
     CategoriaForm,
@@ -434,6 +440,61 @@ def pedido_detalle(request, pk):
         request,
         "inventario/pedido_detalle.html",
         {"pedido": pedido},
+    )
+
+
+def _pdf_static_link_callback(uri, rel):
+    static_prefix = settings.STATIC_URL.strip("/")
+    resource_path = uri.lstrip("/")
+    if resource_path.startswith(f"{static_prefix}/"):
+        resource_path = resource_path[len(static_prefix) + 1:]
+        return finders.find(resource_path) or uri
+    return uri
+
+
+def pedido_pdf_view(request, pk):
+    pedido = get_object_or_404(
+        Pedido.objects.select_related("cliente").prefetch_related("items__producto"),
+        pk=pk,
+    )
+    html = render_to_string("inventario/pdf/remito.html", {"pedido": pedido})
+    pdf_buffer = BytesIO()
+    result = pisa.CreatePDF(
+        html,
+        dest=pdf_buffer,
+        encoding="UTF-8",
+        link_callback=_pdf_static_link_callback,
+    )
+    if result.err:
+        return HttpResponse("No se pudo generar el remito.", status=500)
+
+    response = HttpResponse(pdf_buffer.getvalue(), content_type="application/pdf")
+    response["Content-Disposition"] = (
+        f'attachment; filename="Remito_{pedido.numero_operacion}.pdf"'
+    )
+    return response
+
+
+def descargar_backup(request):
+    if connection.vendor != "sqlite":
+        return HttpResponse("La descarga de backup solo está disponible para SQLite.", status=501)
+
+    backup_connection = sqlite3.connect(":memory:")
+    try:
+        connection.ensure_connection()
+        connection.connection.backup(backup_connection)
+        backup_file = BytesIO(backup_connection.serialize())
+    except sqlite3.Error:
+        return HttpResponse("No se pudo generar la copia de seguridad.", status=500)
+    finally:
+        backup_connection.close()
+
+    filename = f"backup_{timezone.localtime():%Y%m%d_%H%M%S}.sqlite3"
+    return FileResponse(
+        backup_file,
+        as_attachment=True,
+        filename=filename,
+        content_type="application/vnd.sqlite3",
     )
 
 

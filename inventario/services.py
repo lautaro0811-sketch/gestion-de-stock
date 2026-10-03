@@ -179,6 +179,10 @@ def crear_pedido(
     pedido = Pedido.objects.create(
         numero_operacion=numero_operacion,
         cliente=cliente,
+        cliente_nombre=cliente.nombre,
+        cliente_tipo_documento=cliente.tipo_documento or "",
+        cliente_numero_documento=cliente.numero_documento or "",
+        cliente_telefono=cliente.telefono,
         fecha=fecha_pedido,
         estado=Pedido.EstadoPedido.CONFIRMADO,
         observacion=observacion,
@@ -214,6 +218,7 @@ def crear_pedido(
         PedidoItem.objects.create(
             pedido=pedido,
             producto=producto,
+            producto_nombre=producto.nombre,
             cantidad=cantidad,
             precio_unitario=precio_unitario,
         )

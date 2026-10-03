@@ -244,6 +244,10 @@ class Pedido(models.Model):
         related_name="pedidos",
         verbose_name="Cliente",
     )
+    cliente_nombre = models.CharField(max_length=150, blank=True, default="", verbose_name="Nombre del cliente al vender")
+    cliente_tipo_documento = models.CharField(max_length=10, blank=True, default="", verbose_name="Tipo de documento al vender")
+    cliente_numero_documento = models.CharField(max_length=20, blank=True, default="", verbose_name="Documento del cliente al vender")
+    cliente_telefono = models.CharField(max_length=50, blank=True, default="", verbose_name="Teléfono del cliente al vender")
     fecha = models.DateTimeField(
         default=timezone.now,
         verbose_name="Fecha",
@@ -288,6 +292,7 @@ class PedidoItem(models.Model):
         related_name="pedido_items",
         verbose_name="Producto",
     )
+    producto_nombre = models.CharField(max_length=150, blank=True, default="", verbose_name="Nombre del producto al vender")
     cantidad = models.PositiveIntegerField(
         validators=[MinValueValidator(1)],
         verbose_name="Cantidad",
