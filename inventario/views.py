@@ -1,4 +1,5 @@
 import csv
+import sqlite3
 from datetime import datetime
 from io import BytesIO
 
@@ -7,9 +8,9 @@ from django.contrib import messages
 from django.contrib.staticfiles import finders
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.db import transaction
+from django.db import connection, transaction
 from django.db.models import F, Q, Count
-from django.http import HttpResponse
+from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.utils import timezone
@@ -472,6 +473,29 @@ def pedido_pdf_view(request, pk):
         f'attachment; filename="Remito_{pedido.numero_operacion}.pdf"'
     )
     return response
+
+
+def descargar_backup(request):
+    if connection.vendor != "sqlite":
+        return HttpResponse("La descarga de backup solo está disponible para SQLite.", status=501)
+
+    backup_connection = sqlite3.connect(":memory:")
+    try:
+        connection.ensure_connection()
+        connection.connection.backup(backup_connection)
+        backup_file = BytesIO(backup_connection.serialize())
+    except sqlite3.Error:
+        return HttpResponse("No se pudo generar la copia de seguridad.", status=500)
+    finally:
+        backup_connection.close()
+
+    filename = f"backup_{timezone.localtime():%Y%m%d_%H%M%S}.sqlite3"
+    return FileResponse(
+        backup_file,
+        as_attachment=True,
+        filename=filename,
+        content_type="application/vnd.sqlite3",
+    )
 
 
 def pedido_cancelar(request, pk):

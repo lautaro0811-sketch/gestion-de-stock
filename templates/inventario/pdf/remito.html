@@ -76,12 +76,12 @@
         <div>Fecha: {{ pedido.fecha|date:"d/m/Y H:i" }}</div>
         <div>Estado: {{ pedido.get_estado_display }}</div>
         <div class="client-details">
-            Cliente: {{ pedido.cliente.nombre }}
-            {% if pedido.cliente.numero_documento %}
-                <br>{{ pedido.cliente.get_tipo_documento_display }}: {{ pedido.cliente.numero_documento }}
+            Cliente: {{ pedido.cliente_nombre }}
+            {% if pedido.cliente_numero_documento %}
+                <br>{{ pedido.cliente_tipo_documento }}: {{ pedido.cliente_numero_documento }}
             {% endif %}
-            {% if pedido.cliente.telefono %}
-                <br>Teléfono: {{ pedido.cliente.telefono }}
+            {% if pedido.cliente_telefono %}
+                <br>Teléfono: {{ pedido.cliente_telefono }}
             {% endif %}
         </div>
     </header>
@@ -101,7 +101,7 @@
                 <tr>
                     <td class="quantity-cell text-center">{{ item.cantidad }}</td>
                     <td class="product-cell">
-                        {{ item.producto.nombre }}
+                        {{ item.producto_nombre }}
                         <div class="unit-price">Unitario: ${{ item.precio_unitario|floatformat:2 }}</div>
                     </td>
                     <td class="subtotal-cell text-right">${{ item.subtotal|floatformat:2 }}</td>

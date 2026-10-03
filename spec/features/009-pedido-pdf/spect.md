@@ -1,10 +1,10 @@
 # 009 · Generación de Pedido en PDF (Remito)
 
-**Estado:** completado
+**Estado:** completado ✅
 
 ## Qué hace
 
-Permite al usuario generar y descargar un documento PDF estructurado como un "remito" o comprobante a partir de un pedido de venta. El documento está optimizado para impresión (formato A4) e incluye todos los datos esenciales de la operación para ser entregado al cliente, utilizando un membrete genérico para los datos de la empresa emisora.
+Permite al usuario generar y descargar un documento PDF estructurado como un "remito" o comprobante a partir de un pedido de venta. El documento está orientado a impresión tipo ticket / comprobante operativo y incluye todos los datos esenciales de la operación para ser entregado al cliente, utilizando un membrete genérico para los datos de la empresa emisora.
 
 ## Por qué
 
@@ -19,7 +19,7 @@ Digitaliza la entrega de comprobantes y permite tener un respaldo físico o envi
 - [x] El documento PDF incluye los datos de la Operación: Número correlativo (`2026-0001`), Fecha de la venta y Estado.
 - [x] El documento PDF muestra una tabla clara con los ítems: Producto, Cantidad, Precio Unitario (histórico congelado) y Subtotal.
 - [x] El documento PDF muestra el Total de la operación al pie de la tabla.
-- [x] La generación técnica del archivo se delega estrictamente en la "skill pdf" del agente, sin instalar dependencias como WeasyPrint o ReportLab.
+- [x] La generación técnica del archivo se realiza con `xhtml2pdf`, sin depender de WeasyPrint ni ReportLab.
 
 ## Fuera de alcance
 

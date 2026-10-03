@@ -17,5 +17,6 @@ urlpatterns = [
     path("pedidos/<int:pk>/cancelar/", views.pedido_cancelar, name="pedido_cancelar"),
     path("movimientos/", views.movimiento_historial, name="movimiento_historial"),
     path("movimientos/nuevo/", views.movimiento_crear, name="movimiento_crear"),
+    path("backup/", views.descargar_backup, name="descargar_backup"),
     path("exportar/", views.export_csv, name="export_csv"),
 ]

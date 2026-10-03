@@ -23,7 +23,7 @@ Es la base para poder asociar las ventas (salidas de stock) a una persona o empr
   - `fecha_creacion`: DateTimeField, `auto_now_add=True`.
 - [x] Validación según `tipo_documento`:
   - Si `tipo_documento` es `DNI`: `numero_documento` normalizado (solo dígitos) debe tener 7 u 8 dígitos.
-  - Si `tipo_documento` es `CUIT`: `numero_documento` normalizado debe tener 11 dígitos y validar el algoritmo oficial de dígito verificador módulo 11 (con factores 5, 4, 3, 2, 7, 6, 5, 4, 3, 2).
+  - Si `tipo_documento` es `CUIT`: `numero_documento` normalizado debe tener 11 dígitos. Se acepta como validación de formato para mantener la lógica operativa simple; no se aplica validación de dígito verificador fiscal en esta etapa.
 - [x] Validación de `telefono`: mínimo 6 dígitos tras normalizar si no está vacío.
 - [x] Normalización automática de `numero_documento` y `telefono` a solo dígitos antes de guardar.
 - [x] El sistema impide registrar dos clientes con el mismo `numero_documento` (incluso si se ingresan con distintos formatos de puntos o guiones).

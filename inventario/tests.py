@@ -1,4 +1,5 @@
 import datetime
+import sqlite3
 from decimal import Decimal
 
 from django.contrib import admin
@@ -8,7 +9,8 @@ from django.db import IntegrityError, transaction
 from django.db.models import ProtectedError
 from django.db.models.query import QuerySet
 from django.template import Context, Template
-from django.test import RequestFactory, TestCase
+from django.template.loader import render_to_string
+from django.test import RequestFactory, TestCase, TransactionTestCase
 from django.urls import reverse
 from django.utils import timezone
 
@@ -1344,6 +1346,34 @@ class PedidosViewsAndFormsTest(TestCase):
         self.assertContains(response, "Escoba Plástica")
         self.assertContains(response, "$1900,00")
 
+    def test_pedido_y_remito_conservan_datos_historicos(self):
+        pedido = crear_pedido(
+            cliente_id=self.cliente.id,
+            items_data=[{"producto_id": self.producto.id, "cantidad": 2}],
+        )
+
+        self.cliente.nombre = "Nombre actualizado"
+        self.cliente.numero_documento = "30123456"
+        self.cliente.telefono = "1199999999"
+        self.cliente.save()
+        self.producto.nombre = "Producto actualizado"
+        self.producto.save()
+
+        response = self.client.get(reverse("pedido_detalle", kwargs={"pk": pedido.pk}))
+        self.assertContains(response, "Juan Perez")
+        self.assertContains(response, "30111222")
+        self.assertContains(response, "Escoba Plástica")
+        self.assertNotContains(response, "Nombre actualizado")
+        self.assertNotContains(response, "Producto actualizado")
+
+        remito = render_to_string("inventario/pdf/remito.html", {"pedido": pedido})
+        self.assertIn("Juan Perez", remito)
+        self.assertIn("30111222", remito)
+        self.assertIn("1122334455", remito)
+        self.assertIn("Escoba Plástica", remito)
+        self.assertNotIn("Nombre actualizado", remito)
+        self.assertNotIn("Producto actualizado", remito)
+
     def test_pedido_pdf_view_retorna_pdf_descargable(self):
         pedido = crear_pedido(
             cliente_id=self.cliente.id,
@@ -1376,6 +1406,32 @@ class PedidosViewsAndFormsTest(TestCase):
         self.assertEqual(pedido.estado, Pedido.EstadoPedido.CANCELADO)
         self.producto.refresh_from_db()
         self.assertEqual(self.producto.stock_actual, 15)
+
+
+class BackupDownloadTest(TransactionTestCase):
+    def test_backup_descargado_es_una_base_sqlite_integra(self):
+        Categoria.objects.create(nombre="Respaldo")
+
+        response = self.client.get(reverse("descargar_backup"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/vnd.sqlite3")
+        self.assertIn("attachment; filename=\"backup_", response["Content-Disposition"])
+        backup_data = b"".join(response.streaming_content)
+        self.assertTrue(backup_data.startswith(b"SQLite format 3\x00"))
+
+        backup_connection = sqlite3.connect(":memory:")
+        try:
+            backup_connection.deserialize(backup_data)
+            integrity = backup_connection.execute("PRAGMA integrity_check").fetchone()[0]
+            self.assertEqual(integrity, "ok")
+            self.assertTrue(
+                backup_connection.execute(
+                    "SELECT 1 FROM inventario_categoria WHERE nombre = ?", ("Respaldo",)
+                ).fetchone()
+            )
+        finally:
+            backup_connection.close()
 
 
 class ProductoPrecioUnitarioTest(TestCase):
