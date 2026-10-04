@@ -413,6 +413,21 @@ tr.row-normal     { background-color: var(--color-row-normal-bg); }
 .text-danger { color: var(--color-danger); }
 .text-success { color: var(--color-success); }
 .text-muted-aux { color: var(--color-text-muted); margin: 0 4px; }
+.text-right { text-align: right; }
+
+/* Cuadrícula de resumen (ej. dashboard de caja) */
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.saldo-valor {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-top: 8px;
+}
 
 /* Utility class for table link styling */
 .table-link {

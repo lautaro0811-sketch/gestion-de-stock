@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block title %}Nuevo egreso de caja{% endblock %}
+{% block topbar_title %}Nuevo egreso de caja{% endblock %}
+
+{% block content %}
+<div class="card max-w-500 mx-auto">
+    <div class="card-header-flex">
+        <h2 class="card-title">Registrar egreso manual</h2>
+        <a href="{% url 'caja_dashboard' %}" class="btn btn-secondary btn-sm">Volver</a>
+    </div>
+
+    <form method="post" novalidate>
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+            <div class="alert alert-error">
+                {% for error in form.non_field_errors %}
+                    {{ error }}
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="form-group">
+            <label class="form-label" for="{{ form.monto.id_for_label }}">{{ form.monto.label }}</label>
+            {{ form.monto }}
+            {% for error in form.monto.errors %}
+                <div class="field-error">{{ error }}</div>
+            {% endfor %}
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="{{ form.concepto.id_for_label }}">{{ form.concepto.label }}</label>
+            {{ form.concepto }}
+            {% for error in form.concepto.errors %}
+                <div class="field-error">{{ error }}</div>
+            {% endfor %}
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-danger">Guardar egreso</button>
+            <a href="{% url 'caja_dashboard' %}" class="btn btn-secondary">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

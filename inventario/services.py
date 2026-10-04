@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from .models import Cliente, Movimiento, Pedido, PedidoItem, Producto
+from .models import Cliente, Movimiento, MovimientoCaja, Pedido, PedidoItem, Producto
 
 
 @transaction.atomic
@@ -135,6 +135,42 @@ def registrar_ajuste(
     return movimiento
 
 
+def registrar_ingreso_caja(
+    monto,
+    concepto: str,
+    pedido=None,
+) -> MovimientoCaja:
+    """Registra un ingreso de dinero en la caja."""
+    monto = Decimal(str(monto))
+    if monto <= 0:
+        raise ValidationError("El monto del ingreso debe ser mayor a cero.")
+
+    return MovimientoCaja.objects.create(
+        tipo=MovimientoCaja.TipoMovimientoCaja.INGRESO,
+        monto=monto,
+        concepto=concepto,
+        pedido=pedido,
+    )
+
+
+def registrar_egreso_caja(
+    monto,
+    concepto: str,
+    pedido=None,
+) -> MovimientoCaja:
+    """Registra un egreso de dinero de la caja."""
+    monto = Decimal(str(monto))
+    if monto <= 0:
+        raise ValidationError("El monto del egreso debe ser mayor a cero.")
+
+    return MovimientoCaja.objects.create(
+        tipo=MovimientoCaja.TipoMovimientoCaja.EGRESO,
+        monto=monto,
+        concepto=concepto,
+        pedido=pedido,
+    )
+
+
 @transaction.atomic
 def crear_pedido(
     cliente_id: int,
@@ -233,6 +269,17 @@ def crear_pedido(
             pedido_id=pedido.id,
         )
 
+    # Registrar ingreso en caja por el total del pedido
+    total_pedido = sum(
+        (item.cantidad * item.precio_unitario for item in pedido.items.all()),
+        Decimal("0.00"),
+    )
+    registrar_ingreso_caja(
+        monto=total_pedido,
+        concepto=f"Venta - Pedido #{pedido.numero_operacion}",
+        pedido=pedido,
+    )
+
     return pedido
 
 
@@ -261,5 +308,17 @@ def cancelar_pedido(
             usuario=usuario,
             pedido_id=pedido.id,
         )
+
+    # Registrar egreso compensatorio en caja
+    total_pedido = sum(
+        (item.cantidad * item.precio_unitario
+         for item in pedido.items.select_related("producto").all()),
+        Decimal("0.00"),
+    )
+    registrar_egreso_caja(
+        monto=total_pedido,
+        concepto=f"Cancelación - Pedido #{pedido.numero_operacion}",
+        pedido=pedido,
+    )
 
     return pedido
