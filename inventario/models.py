@@ -315,3 +315,43 @@ class PedidoItem(models.Model):
     def subtotal(self):
         return self.cantidad * self.precio_unitario
 
+
+class MovimientoCaja(models.Model):
+    class TipoMovimientoCaja(models.TextChoices):
+        INGRESO = "INGRESO", "Ingreso"
+        EGRESO = "EGRESO", "Egreso"
+
+    fecha = models.DateTimeField(default=timezone.now, verbose_name="Fecha")
+    tipo = models.CharField(
+        max_length=10,
+        choices=TipoMovimientoCaja.choices,
+        verbose_name="Tipo",
+    )
+    monto = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.01"))],
+        verbose_name="Monto",
+    )
+    concepto = models.CharField(
+        max_length=255,
+        verbose_name="Concepto",
+    )
+    pedido = models.ForeignKey(
+        Pedido,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="movimientos_caja",
+        verbose_name="Pedido",
+    )
+
+    class Meta:
+        verbose_name = "Movimiento de Caja"
+        verbose_name_plural = "Movimientos de Caja"
+        ordering = ["-fecha", "-id"]
+
+    def __str__(self):
+        signo = "+" if self.tipo == self.TipoMovimientoCaja.INGRESO else "-"
+        return f"{signo}${self.monto} - {self.concepto} ({self.fecha.strftime('%d/%m/%Y %H:%M')})"
+

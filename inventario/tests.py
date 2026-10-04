@@ -18,6 +18,7 @@ from inventario.admin import MovimientoAdmin
 from inventario.forms import (
     CategoriaForm,
     ClienteForm,
+    EgresoCajaForm,
     ItemPedidoFormSet,
     MovimientoUnificadoForm,
     PedidoForm,
@@ -29,6 +30,7 @@ from inventario.models import (
     Categoria,
     Cliente,
     Movimiento,
+    MovimientoCaja,
     Pedido,
     PedidoItem,
     Producto,
@@ -1408,6 +1410,88 @@ class PedidosViewsAndFormsTest(TestCase):
         self.assertEqual(self.producto.stock_actual, 15)
 
 
+class CajaFeatureTest(TestCase):
+    def setUp(self):
+        self.categoria = Categoria.objects.create(nombre="Caja")
+        self.cliente = Cliente.objects.create(
+            nombre="Cliente Caja",
+            tipo_documento="DNI",
+            numero_documento="32123456",
+        )
+        self.producto = Producto.objects.create(
+            nombre="Producto Caja",
+            categoria=self.categoria,
+            precio_unitario=Decimal("12.35"),
+            stock_actual=10,
+            stock_minimo=1,
+        )
+
+    def test_pedido_y_cancelacion_registran_movimientos_compensatorios(self):
+        pedido = crear_pedido(
+            cliente_id=self.cliente.id,
+            items_data=[{"producto_id": self.producto.id, "cantidad": 2}],
+        )
+
+        ingreso = MovimientoCaja.objects.get(pedido=pedido)
+        self.assertEqual(ingreso.tipo, MovimientoCaja.TipoMovimientoCaja.INGRESO)
+        self.assertEqual(ingreso.monto, Decimal("24.70"))
+
+        cancelar_pedido(pedido_id=pedido.id, motivo="Prueba de caja")
+
+        egreso = MovimientoCaja.objects.get(
+            pedido=pedido,
+            tipo=MovimientoCaja.TipoMovimientoCaja.EGRESO,
+        )
+        self.assertEqual(egreso.monto, ingreso.monto)
+        self.assertEqual(MovimientoCaja.objects.filter(pedido=pedido).count(), 2)
+
+    def test_dashboard_calcula_saldo_decimal_y_admite_movimientos_sin_pedido(self):
+        MovimientoCaja.objects.create(
+            tipo=MovimientoCaja.TipoMovimientoCaja.INGRESO,
+            monto=Decimal("100.10"),
+            concepto="Ingreso de prueba",
+        )
+        MovimientoCaja.objects.create(
+            tipo=MovimientoCaja.TipoMovimientoCaja.EGRESO,
+            monto=Decimal("20.05"),
+            concepto="Egreso de prueba",
+        )
+
+        response = self.client.get(reverse("caja_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["total_ingresos"], Decimal("100.10"))
+        self.assertEqual(response.context["total_egresos"], Decimal("20.05"))
+        self.assertEqual(response.context["saldo"], Decimal("80.05"))
+        self.assertTrue(
+            MovimientoCaja.objects.filter(pedido__isnull=True).exists()
+        )
+        self.assertNotRegex(response.content.decode(), r"\bstyle\s*=")
+
+    def test_egreso_manual_valida_y_registra_el_concepto(self):
+        form = EgresoCajaForm(data={"monto": "0", "concepto": "Gasto inválido"})
+        self.assertFalse(form.is_valid())
+        self.assertIn("monto", form.errors)
+
+        response = self.client.post(
+            reverse("caja_egreso_crear"),
+            {"monto": "15.25", "concepto": "Compra de limpieza"},
+        )
+
+        self.assertRedirects(response, reverse("caja_dashboard"))
+        egreso = MovimientoCaja.objects.get()
+        self.assertEqual(egreso.tipo, MovimientoCaja.TipoMovimientoCaja.EGRESO)
+        self.assertEqual(egreso.monto, Decimal("15.25"))
+        self.assertEqual(egreso.concepto, "Compra de limpieza")
+        self.assertIsNone(egreso.pedido)
+
+        dashboard = self.client.get(reverse("caja_dashboard"))
+        formulario = self.client.get(reverse("caja_egreso_crear"))
+        self.assertEqual(dashboard.status_code, 200)
+        self.assertEqual(formulario.status_code, 200)
+        self.assertNotRegex(formulario.content.decode(), r"\bstyle\s*=")
+
+
 class BackupDownloadTest(TransactionTestCase):
     def test_backup_descargado_es_una_base_sqlite_integra(self):
         Categoria.objects.create(nombre="Respaldo")
@@ -1484,6 +1568,5 @@ class ProductoPrecioUnitarioTest(TestCase):
         content = response.content.decode("utf-8")
         self.assertIn("Precio Unitario", content)
         self.assertIn("$450.00", content)
-
 
 

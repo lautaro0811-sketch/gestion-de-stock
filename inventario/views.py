@@ -9,7 +9,7 @@ from django.contrib.staticfiles import finders
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import connection, transaction
-from django.db.models import F, Q, Count
+from django.db.models import F, Q, Count, Sum
 from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
@@ -19,18 +19,20 @@ from xhtml2pdf import pisa
 from .forms import (
     CategoriaForm,
     ClienteForm,
+    EgresoCajaForm,
     ItemPedidoFormSet,
     MovimientoUnificadoForm,
     PedidoForm,
     ProductoCrearForm,
     ProductoEditarForm,
 )
-from .models import Categoria, Cliente, Movimiento, Pedido, PedidoItem, Producto
+from .models import Categoria, Cliente, Movimiento, MovimientoCaja, Pedido, PedidoItem, Producto
 
 from .services import (
     cancelar_pedido,
     crear_pedido,
     registrar_ajuste,
+    registrar_egreso_caja,
     registrar_entrada,
     registrar_salida,
 )
@@ -567,3 +569,59 @@ def export_csv(request):
         ])
     return response
 
+
+# --- CAJA ---
+def caja_dashboard(request):
+    """Dashboard de caja con saldo calculado dinámicamente."""
+    from decimal import Decimal
+
+    agregados = MovimientoCaja.objects.aggregate(
+        total_ingresos=Sum("monto", filter=Q(tipo="INGRESO")),
+        total_egresos=Sum("monto", filter=Q(tipo="EGRESO")),
+    )
+
+    total_ingresos = agregados["total_ingresos"] or Decimal("0.00")
+    total_egresos = agregados["total_egresos"] or Decimal("0.00")
+    saldo = total_ingresos - total_egresos
+
+    movimientos = MovimientoCaja.objects.select_related("pedido").all()
+
+    paginator = Paginator(movimientos, 20)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    return render(
+        request,
+        "inventario/caja_dashboard.html",
+        {
+            "total_ingresos": total_ingresos,
+            "total_egresos": total_egresos,
+            "saldo": saldo,
+            "movimientos": page_obj,
+            "page_obj": page_obj,
+        },
+    )
+
+
+def caja_egreso_crear(request):
+    """Registra un egreso manual de caja."""
+    if request.method == "POST":
+        form = EgresoCajaForm(request.POST)
+        if form.is_valid():
+            monto = form.cleaned_data["monto"]
+            concepto = form.cleaned_data["concepto"]
+            try:
+                registrar_egreso_caja(monto=monto, concepto=concepto)
+                messages.success(request, f"Egreso de ${monto} registrado correctamente: {concepto}")
+                return redirect("caja_dashboard")
+            except ValidationError as e:
+                err_msg = e.message if hasattr(e, "message") else ", ".join(e.messages)
+                messages.error(request, err_msg)
+    else:
+        form = EgresoCajaForm()
+
+    return render(
+        request,
+        "inventario/caja_egreso_form.html",
+        {"form": form},
+    )

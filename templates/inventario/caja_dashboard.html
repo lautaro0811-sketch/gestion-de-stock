@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+
+{% block title %}Caja{% endblock %}
+{% block topbar_title %}Caja y flujo de efectivo{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header-flex">
+        <h2 class="card-title">Resumen de caja</h2>
+        <div class="action-bar">
+            <a href="{% url 'caja_egreso_crear' %}" class="btn btn-danger btn-sm">+ Nuevo egreso</a>
+        </div>
+    </div>
+
+    <div class="summary-grid">
+        <div class="card">
+            <div class="text-muted">Ingresos</div>
+            <div class="saldo-valor text-success">${{ total_ingresos|floatformat:2 }}</div>
+        </div>
+
+        <div class="card">
+            <div class="text-muted">Egresos</div>
+            <div class="saldo-valor text-danger">${{ total_egresos|floatformat:2 }}</div>
+        </div>
+
+        <div class="card">
+            <div class="text-muted">Saldo actual</div>
+            <div class="saldo-valor {% if saldo < 0 %}text-danger{% else %}text-success{% endif %}">${{ saldo|floatformat:2 }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header-flex">
+        <h2 class="card-title">Historial de movimientos</h2>
+    </div>
+
+    {% if movimientos %}
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Tipo</th>
+                        <th>Concepto</th>
+                        <th>Monto</th>
+                        <th>Pedido</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for movimiento in movimientos %}
+                        <tr>
+                            <td>{{ movimiento.fecha|date:"d/m/Y H:i" }}</td>
+                            <td>
+                                <span class="badge {% if movimiento.tipo == 'INGRESO' %}badge-success{% else %}badge-danger{% endif %}">
+                                    {{ movimiento.get_tipo_display }}
+                                </span>
+                            </td>
+                            <td>{{ movimiento.concepto }}</td>
+                            <td class="{% if movimiento.tipo == 'INGRESO' %}text-success{% else %}text-danger{% endif %}">
+                                {% if movimiento.tipo == 'INGRESO' %}+{% else %}-{% endif %}${{ movimiento.monto|floatformat:2 }}
+                            </td>
+                            <td>
+                                {% if movimiento.pedido %}
+                                    Pedido #{{ movimiento.pedido.numero_operacion }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% include 'inventario/includes/pagination.html' with page_obj=page_obj %}
+    {% else %}
+        <div class="empty-row">Todavía no hay movimientos de caja registrados.</div>
+    {% endif %}
+</div>
+{% endblock %}

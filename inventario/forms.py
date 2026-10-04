@@ -2,7 +2,7 @@ from django import forms
 from django.forms import inlineformset_factory
 from django.utils import timezone
 
-from .models import Categoria, Cliente, Movimiento, Pedido, PedidoItem, Producto
+from .models import Categoria, Cliente, Movimiento, MovimientoCaja, Pedido, PedidoItem, Producto
 
 
 class ProductoBaseForm(forms.ModelForm):
@@ -223,3 +223,32 @@ ItemPedidoFormSet = inlineformset_factory(
 )
 
 PedidoItemFormSet = ItemPedidoFormSet
+
+
+class EgresoCajaForm(forms.Form):
+    monto = forms.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        min_value=0.01,
+        widget=forms.NumberInput(attrs={
+            "class": "form-control",
+            "min": "0.01",
+            "step": "0.01",
+            "placeholder": "0.00",
+        }),
+        label="Monto ($)",
+    )
+    concepto = forms.CharField(
+        max_length=255,
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Ej: Viáticos, limpieza, materiales...",
+        }),
+        label="Concepto",
+    )
+
+    def clean_monto(self):
+        monto = self.cleaned_data.get("monto")
+        if monto is not None and monto <= 0:
+            raise forms.ValidationError("El monto debe ser mayor a cero.")
+        return monto

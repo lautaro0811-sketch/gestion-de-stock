@@ -19,4 +19,6 @@ urlpatterns = [
     path("movimientos/nuevo/", views.movimiento_crear, name="movimiento_crear"),
     path("backup/", views.descargar_backup, name="descargar_backup"),
     path("exportar/", views.export_csv, name="export_csv"),
+    path("caja/", views.caja_dashboard, name="caja_dashboard"),
+    path("caja/egreso/", views.caja_egreso_crear, name="caja_egreso_crear"),
 ]

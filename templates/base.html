@@ -36,6 +36,9 @@
                 <a href="{% url 'pedido_list' %}" class="sidebar-link {% if 'pedido' in request.resolver_match.url_name %}active{% endif %}">
                     🛒 Pedidos de Venta
                 </a>
+                <a href="{% url 'caja_dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'caja_dashboard' or request.resolver_match.url_name == 'caja_egreso_crear' %}active{% endif %}">
+                    💰 Caja
+                </a>
                 <a href="{% url 'descargar_backup' %}" class="sidebar-link">
                     Descargar backup
                 </a>
