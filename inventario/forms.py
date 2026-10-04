@@ -136,7 +136,7 @@ class ProveedorForm(forms.ModelForm):
             "nombre": "Nombre / Razón social",
             "tipo_documento": "Tipo de documento",
             "numero_documento": "CUIT / DNI",
-            "domicilio": "Domicilio de entrega",
+            "domicilio": "Domicilio",
             "correo": "Correo electrónico",
             "telefono": "Teléfono",
         }
@@ -144,7 +144,7 @@ class ProveedorForm(forms.ModelForm):
             "nombre": forms.TextInput(attrs={"class": "form-control", "placeholder": "Nombre o razón social"}),
             "tipo_documento": forms.Select(attrs={"class": "form-control"}),
             "numero_documento": forms.TextInput(attrs={"class": "form-control", "placeholder": "Número de documento o CUIT"}),
-            "domicilio": forms.TextInput(attrs={"class": "form-control", "placeholder": "Domicilio de entrega"}),
+            "domicilio": forms.TextInput(attrs={"class": "form-control", "placeholder": "Domicilio"}),
             "correo": forms.EmailInput(attrs={"class": "form-control", "placeholder": "ejemplo@correo.com"}),
             "telefono": forms.TextInput(attrs={"class": "form-control", "placeholder": "Teléfono de contacto"}),
         }
