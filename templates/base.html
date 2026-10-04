@@ -33,6 +33,9 @@
                 <a href="{% url 'cliente_list' %}" class="sidebar-link {% if request.resolver_match.url_name == 'cliente_list' %}active{% endif %}">
                     👥 Clientes
                 </a>
+                <a href="{% url 'proveedor_list' %}" class="sidebar-link {% if request.resolver_match.url_name == 'proveedor_list' or request.resolver_match.url_name == 'proveedor_desactivar' %}active{% endif %}">
+                    🏭 Proveedores
+                </a>
                 <a href="{% url 'pedido_list' %}" class="sidebar-link {% if 'pedido' in request.resolver_match.url_name %}active{% endif %}">
                     🛒 Pedidos de Venta
                 </a>
