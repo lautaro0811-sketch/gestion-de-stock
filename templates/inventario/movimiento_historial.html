@@ -103,6 +103,13 @@
                                 </a>
                             </div>
                         {% endif %}
+                        {% if m.orden_compra %}
+                            <div>
+                                <a href="{% url 'orden_compra_detalle' m.orden_compra.id %}" class="badge badge-info" style="text-decoration: none; margin-top: 4px; display: inline-block;">
+                                    📥 Orden de Compra #{{ m.orden_compra.numero_operacion }}
+                                </a>
+                            </div>
+                        {% endif %}
                     </td>
                 </tr>
                 {% empty %}

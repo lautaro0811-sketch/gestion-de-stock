@@ -1,0 +1,22 @@
+# 012 · Órdenes de Compra — Tareas
+
+- [x] Confirmar contra el código real la implementación de crear_pedido (generación atómica de numero_operacion) antes de replicar el criterio con el prefijo OC-.
+- [x] Confirmar que registrar_entrada actualmente acepta pedido_id pero no orden_compra_id, y agregar el argumento opcional para asociar las recepciones a la orden sin afectar llamadas actuales.
+- [x] Crear los modelos OrdenCompra y OrdenCompraItem.
+- [x] Agregar el campo orden_compra a Movimiento.
+- [x] Generar y aplicar la migración.
+- [x] Implementar crear_orden_compra en services.py (sin tocar stock).
+- [x] Implementar recibir_mercaderia en services.py (valida estado PENDIENTE, llama a registrar_entrada por ítem, cambia a RECIBIDA).
+- [x] Implementar cancelar_orden_compra en services.py (valida estado PENDIENTE, cambia a CANCELADA).
+- [x] Adaptar registrar_entrada para aceptar orden_compra_id opcional.
+- [x] Crear OrdenCompraForm y el formset de ítems.
+- [x] Implementar las vistas: orden_compra_list, orden_compra_detalle, orden_compra_crear, orden_compra_recibir, orden_compra_cancelar.
+- [x] Agregar las rutas en inventario/urls.py.
+- [x] Crear los templates (listado, detalle con botones condicionados al estado, formulario de alta), sin estilos en línea.
+- [x] Agregar el link "Órdenes de Compra" en el sidebar de base.html.
+- [x] Registrar OrdenCompra y OrdenCompraItem en el admin.
+- [x] Tests: crear orden no modifica stock; recibir mercadería incrementa stock y cambia estado; recibir una orden ya RECIBIDA es rechazado; cancelar una orden PENDIENTE no genera movimientos; cancelar una orden ya CANCELADA o ya RECIBIDA es rechazado; el número de operación con prefijo OC- no colisiona con los números de Pedido del mismo año; los movimientos de ENTRADA de una recepción muestran la orden de compra asociada.
+- [x] Correr `python manage.py test` (suite completa) y confirmar que todo pasa.
+- [x] Validar contra los criterios de aceptación de `spec.md`.
+- [x] Mover la feature a "Hecho" en `../../constitution/roadmap.md`.
+- [x] Agregar alta rápida de productos al formulario de orden mediante `ProductoForm`, endpoint AJAX y diálogo HTML nativo sin perder datos del formset.

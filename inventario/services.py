@@ -4,7 +4,17 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from .models import Cliente, Movimiento, MovimientoCaja, Pedido, PedidoItem, Producto
+from .models import (
+    Cliente,
+    Movimiento,
+    MovimientoCaja,
+    OrdenCompra,
+    OrdenCompraItem,
+    Pedido,
+    PedidoItem,
+    Producto,
+    Proveedor,
+)
 
 
 @transaction.atomic
@@ -15,6 +25,7 @@ def registrar_entrada(
     fecha=None,
     usuario=None,
     pedido_id: int = None,
+    orden_compra_id: int = None,
 ) -> Movimiento:
     """Registra un ingreso de stock incrementando el saldo actual."""
     if cantidad <= 0:
@@ -36,6 +47,7 @@ def registrar_entrada(
         observacion=observacion,
         fecha=fecha or timezone.now(),
         pedido_id=pedido_id,
+        orden_compra_id=orden_compra_id,
     )
 
     # 2. Actualizar stock actual del producto
@@ -281,6 +293,125 @@ def crear_pedido(
     )
 
     return pedido
+
+
+@transaction.atomic
+def crear_orden_compra(
+    proveedor_id: int,
+    items_data: list,
+    observacion: str = "",
+    fecha=None,
+) -> OrdenCompra:
+    """Crea una orden pendiente sin modificar el stock de los productos."""
+    if not items_data:
+        raise ValidationError("La orden de compra debe contener al menos un ítem.")
+
+    try:
+        proveedor = Proveedor.objects.get(pk=proveedor_id, activo=True)
+    except Proveedor.DoesNotExist:
+        raise ValidationError("El proveedor seleccionado no existe o no está activo.")
+
+    fecha_orden = fecha or timezone.now()
+    prefijo = f"OC-{fecha_orden.year}-"
+    ordenes_anuales = OrdenCompra.objects.filter(numero_operacion__startswith=prefijo)
+    ultima = ordenes_anuales.select_for_update().order_by("-numero_operacion").first()
+
+    if ultima:
+        try:
+            siguiente = int(ultima.numero_operacion.rsplit("-", 1)[1]) + 1
+        except (IndexError, ValueError):
+            siguiente = ordenes_anuales.count() + 1
+    else:
+        siguiente = 1
+
+    numero_operacion = f"{prefijo}{siguiente:04d}"
+    while OrdenCompra.objects.filter(numero_operacion=numero_operacion).exists():
+        siguiente += 1
+        numero_operacion = f"{prefijo}{siguiente:04d}"
+
+    orden = OrdenCompra.objects.create(
+        numero_operacion=numero_operacion,
+        proveedor=proveedor,
+        fecha=fecha_orden,
+        estado=OrdenCompra.EstadoOrdenCompra.PENDIENTE,
+        observacion=observacion,
+    )
+
+    for item in items_data:
+        producto_id = item.get("producto_id")
+        cantidad = item.get("cantidad")
+        if not producto_id or cantidad is None:
+            raise ValidationError("Cada ítem debe tener un producto y una cantidad válida.")
+
+        try:
+            cantidad = int(cantidad)
+        except (ValueError, TypeError):
+            raise ValidationError("La cantidad debe ser un número entero.")
+        if cantidad <= 0:
+            raise ValidationError("La cantidad de cada ítem debe ser mayor a cero.")
+
+        try:
+            producto = Producto.objects.get(pk=producto_id, activo=True)
+        except Producto.DoesNotExist:
+            raise ValidationError(f"El producto con ID {producto_id} no existe o no está activo.")
+
+        precio = item.get("precio_unitario_compra")
+        if precio is None:
+            raise ValidationError("Cada ítem debe incluir un precio unitario de compra.")
+        try:
+            precio = Decimal(str(precio))
+        except (ValueError, TypeError, ArithmeticError):
+            raise ValidationError("El precio unitario de compra debe ser un número válido.")
+        if not precio.is_finite() or precio < 0:
+            raise ValidationError("El precio unitario de compra no puede ser negativo.")
+
+        OrdenCompraItem.objects.create(
+            orden_compra=orden,
+            producto=producto,
+            producto_nombre=producto.nombre,
+            cantidad=cantidad,
+            precio_unitario_compra=precio,
+        )
+
+    return orden
+
+
+@transaction.atomic
+def recibir_mercaderia(
+    orden_compra_id: int,
+    usuario=None,
+    fecha=None,
+) -> OrdenCompra:
+    """Recibe todos los artículos pendientes e incrementa el stock en una transacción."""
+    orden = OrdenCompra.objects.select_for_update().get(pk=orden_compra_id)
+    if orden.estado != OrdenCompra.EstadoOrdenCompra.PENDIENTE:
+        raise ValidationError("Solo se puede recibir una orden de compra pendiente.")
+
+    for item in orden.items.select_related("producto").all():
+        registrar_entrada(
+            producto_id=item.producto_id,
+            cantidad=item.cantidad,
+            observacion=f"Recepción de Orden de Compra #{orden.numero_operacion}",
+            fecha=fecha or timezone.now(),
+            usuario=usuario,
+            orden_compra_id=orden.id,
+        )
+
+    orden.estado = OrdenCompra.EstadoOrdenCompra.RECIBIDA
+    orden.save(update_fields=["estado", "fecha_actualizacion"])
+    return orden
+
+
+@transaction.atomic
+def cancelar_orden_compra(orden_compra_id: int) -> OrdenCompra:
+    """Cancela una orden pendiente sin generar movimientos de stock."""
+    orden = OrdenCompra.objects.select_for_update().get(pk=orden_compra_id)
+    if orden.estado != OrdenCompra.EstadoOrdenCompra.PENDIENTE:
+        raise ValidationError("Solo se puede cancelar una orden de compra pendiente.")
+
+    orden.estado = OrdenCompra.EstadoOrdenCompra.CANCELADA
+    orden.save(update_fields=["estado", "fecha_actualizacion"])
+    return orden
 
 
 @transaction.atomic

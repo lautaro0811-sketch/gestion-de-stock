@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+
+{% block title %}Orden de Compra {{ orden.numero_operacion }}{% endblock %}
+{% block topbar_title %}Detalle de Orden de Compra{% endblock %}
+
+{% block content %}
+<div class="card mb-16">
+    <div class="form-actions mb-16">
+        <h2>Orden de Compra {{ orden.numero_operacion }}</h2>
+        {% if orden.estado == 'PENDIENTE' %}
+            <span class="badge badge-info">Pendiente</span>
+        {% elif orden.estado == 'RECIBIDA' %}
+            <span class="badge badge-success">Recibida</span>
+        {% else %}
+            <span class="badge badge-danger">Cancelada</span>
+        {% endif %}
+    </div>
+
+    <div class="grid-two-col mb-16">
+        <div>
+            <p class="text-muted">Proveedor</p>
+            <p><strong>{{ orden.proveedor.nombre }}</strong></p>
+            <p class="text-muted"><small>{{ orden.proveedor.tipo_documento }}: {{ orden.proveedor.numero_documento }}</small></p>
+        </div>
+        <div>
+            <p class="text-muted">Fecha de Operación</p>
+            <p><strong>{{ orden.fecha|date:"d/m/Y H:i" }}</strong></p>
+        </div>
+    </div>
+    {% if orden.observacion %}
+        <p class="text-muted">Observaciones</p>
+        <p>{{ orden.observacion|linebreaksbr }}</p>
+    {% endif %}
+</div>
+
+<div class="card mb-16">
+    <h3 class="mb-16">Ítems de la Orden de Compra</h3>
+    <table class="w-full">
+        <thead>
+            <tr>
+                <th>Producto</th>
+                <th class="text-center">Cantidad</th>
+                <th class="text-center">Precio Unit. de Compra</th>
+                <th class="text-center">Subtotal</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in orden.items.all %}
+            <tr>
+                <td>{{ item.producto_nombre|default:item.producto.nombre }}</td>
+                <td class="text-center">{{ item.cantidad }}</td>
+                <td class="text-center">${{ item.precio_unitario_compra|floatformat:2 }}</td>
+                <td class="text-center"><strong>${{ item.subtotal|floatformat:2 }}</strong></td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" class="text-center text-muted p-20">No hay ítems en esta orden.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="form-actions justify-end">
+        <h3>Total: ${{ orden.total|floatformat:2 }}</h3>
+    </div>
+</div>
+
+<div class="form-actions">
+    <a href="{% url 'orden_compra_list' %}" class="btn btn-secondary">Volver al listado</a>
+    {% if orden.estado == 'PENDIENTE' %}
+        <form method="post" action="{% url 'orden_compra_recibir' orden.id %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-success">Recibir mercadería</button>
+        </form>
+        <form method="post" action="{% url 'orden_compra_cancelar' orden.id %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">Cancelar Orden</button>
+        </form>
+    {% endif %}
+</div>
+{% endblock %}

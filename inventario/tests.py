@@ -32,17 +32,21 @@ from inventario.models import (
     Cliente,
     Movimiento,
     MovimientoCaja,
+    OrdenCompra,
     Pedido,
     PedidoItem,
     Producto,
     Proveedor,
 )
 from inventario.services import (
+    cancelar_orden_compra,
     cancelar_pedido,
+    crear_orden_compra,
     crear_pedido,
     registrar_ajuste,
     registrar_entrada,
     registrar_salida,
+    recibir_mercaderia,
 )
 
 
@@ -1435,6 +1439,167 @@ class PedidosServicesTest(TestCase):
         self.assertIsNone(m_sal.pedido)
 
 
+class OrdenesCompraServicesTest(TestCase):
+    def setUp(self):
+        self.cat = Categoria.objects.create(nombre="Insumos")
+        self.proveedor = Proveedor.objects.create(
+            nombre="Distribuidora Test",
+            tipo_documento="CUIT",
+            numero_documento="30765432109",
+        )
+        self.producto = Producto.objects.create(
+            nombre="Caja de tornillos",
+            categoria=self.cat,
+            precio_unitario=Decimal("25.00"),
+            stock_actual=10,
+            stock_minimo=2,
+        )
+
+    def crear_orden(self):
+        return crear_orden_compra(
+            proveedor_id=self.proveedor.id,
+            items_data=[
+                {
+                    "producto_id": self.producto.id,
+                    "cantidad": 4,
+                    "precio_unitario_compra": Decimal("18.50"),
+                }
+            ],
+        )
+
+    def test_crear_orden_no_modifica_stock(self):
+        orden = self.crear_orden()
+
+        self.producto.refresh_from_db()
+        self.assertEqual(orden.estado, OrdenCompra.EstadoOrdenCompra.PENDIENTE)
+        self.assertEqual(self.producto.stock_actual, 10)
+        self.assertFalse(Movimiento.objects.filter(orden_compra=orden).exists())
+
+    def test_recibir_mercaderia_incrementa_stock_y_cambia_estado(self):
+        orden = self.crear_orden()
+
+        recibida = recibir_mercaderia(orden_compra_id=orden.id)
+
+        self.producto.refresh_from_db()
+        self.assertEqual(recibida.estado, OrdenCompra.EstadoOrdenCompra.RECIBIDA)
+        self.assertEqual(self.producto.stock_actual, 14)
+        movimiento = Movimiento.objects.get(orden_compra=orden)
+        self.assertEqual(movimiento.tipo, Movimiento.TipoMovimiento.ENTRADA)
+        self.assertEqual(movimiento.cantidad, 4)
+
+    def test_recibir_orden_ya_recibida_es_rechazado(self):
+        orden = self.crear_orden()
+        recibir_mercaderia(orden_compra_id=orden.id)
+
+        with self.assertRaises(ValidationError):
+            recibir_mercaderia(orden_compra_id=orden.id)
+
+        self.producto.refresh_from_db()
+        self.assertEqual(self.producto.stock_actual, 14)
+        self.assertEqual(Movimiento.objects.filter(orden_compra=orden).count(), 1)
+
+    def test_cancelar_orden_pendiente_no_genera_movimientos(self):
+        orden = self.crear_orden()
+
+        cancelada = cancelar_orden_compra(orden_compra_id=orden.id)
+
+        self.producto.refresh_from_db()
+        self.assertEqual(cancelada.estado, OrdenCompra.EstadoOrdenCompra.CANCELADA)
+        self.assertEqual(self.producto.stock_actual, 10)
+        self.assertFalse(Movimiento.objects.filter(orden_compra=orden).exists())
+
+    def test_cancelar_orden_cancelada_o_recibida_es_rechazado(self):
+        cancelada = self.crear_orden()
+        cancelar_orden_compra(orden_compra_id=cancelada.id)
+        recibida = self.crear_orden()
+        recibir_mercaderia(orden_compra_id=recibida.id)
+
+        with self.assertRaises(ValidationError):
+            cancelar_orden_compra(orden_compra_id=cancelada.id)
+        with self.assertRaises(ValidationError):
+            cancelar_orden_compra(orden_compra_id=recibida.id)
+
+    def test_numero_orden_compra_no_colisiona_con_pedido_del_mismo_anio(self):
+        pedido = crear_pedido(
+            cliente_id=Cliente.objects.create(
+                nombre="Cliente de prueba",
+                tipo_documento="DNI",
+                numero_documento="30123456",
+            ).id,
+            items_data=[{"producto_id": self.producto.id, "cantidad": 1}],
+        )
+        orden = self.crear_orden()
+        anio_actual = timezone.now().year
+
+        self.assertEqual(pedido.numero_operacion, f"{anio_actual}-0001")
+        self.assertEqual(orden.numero_operacion, f"OC-{anio_actual}-0001")
+        self.assertNotEqual(pedido.numero_operacion, orden.numero_operacion)
+
+    def test_movimiento_de_recepcion_muestra_orden_asociada_en_historial(self):
+        orden = self.crear_orden()
+        recibir_mercaderia(orden_compra_id=orden.id)
+
+        response = self.client.get(reverse("movimiento_historial"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f"Orden de Compra #{orden.numero_operacion}")
+        self.assertContains(
+            response,
+            reverse("orden_compra_detalle", kwargs={"pk": orden.id}),
+        )
+
+
+class ProductoCrearAjaxViewTest(TestCase):
+    def setUp(self):
+        self.categoria = Categoria.objects.create(nombre="Herramientas rápidas")
+
+    def test_crea_producto_y_devuelve_datos_json(self):
+        response = self.client.post(
+            reverse("producto_crear_ajax"),
+            {
+                "nombre": "Llave inglesa",
+                "categoria": self.categoria.id,
+                "precio_unitario": "1250.00",
+                "stock_minimo": 3,
+                "descripcion": "",
+                "stock_inicial": 2,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(
+            data,
+            {
+                "success": True,
+                "id": Producto.objects.get(nombre="Llave inglesa").id,
+                "nombre": "Llave inglesa",
+            },
+        )
+        producto = Producto.objects.get(pk=data["id"])
+        self.assertEqual(producto.stock_actual, 2)
+        self.assertTrue(Movimiento.objects.filter(producto=producto).exists())
+
+    def test_producto_invalido_devuelve_errores_del_formulario(self):
+        response = self.client.post(
+            reverse("producto_crear_ajax"),
+            {
+                "nombre": "",
+                "categoria": self.categoria.id,
+                "precio_unitario": "1250.00",
+                "stock_minimo": 3,
+                "descripcion": "",
+                "stock_inicial": 0,
+            },
+        )
+
+        self.assertEqual(response.status_code, 400)
+        data = response.json()
+        self.assertFalse(data["success"])
+        self.assertIn("nombre", data["errors"])
+        self.assertFalse(Producto.objects.exists())
+
+
 class PedidosViewsAndFormsTest(TestCase):
     def setUp(self):
         User = get_user_model()
@@ -1756,4 +1921,3 @@ class ProductoPrecioUnitarioTest(TestCase):
         content = response.content.decode("utf-8")
         self.assertIn("Precio Unitario", content)
         self.assertIn("$450.00", content)
-

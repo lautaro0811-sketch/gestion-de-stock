@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+
+{% block title %}Órdenes de Compra{% endblock %}
+{% block topbar_title %}Órdenes de Compra{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header-flex">
+        <h2 class="card-title">Listado de Órdenes de Compra</h2>
+        <div class="action-bar">
+            <a href="{% url 'orden_compra_crear' %}" class="btn btn-success">+ Nueva Orden de Compra</a>
+        </div>
+    </div>
+
+    <form method="get" class="filter-form">
+        <div class="filter-input-main">
+            <label class="form-label">Buscar</label>
+            <input type="text" name="q" value="{{ query }}" placeholder="N° de operación o proveedor..." class="form-control">
+        </div>
+        <div class="filter-input-sec">
+            <label class="form-label">Estado</label>
+            <select name="estado" class="form-control">
+                <option value="">Todos los estados</option>
+                {% for valor, etiqueta in estados %}
+                    <option value="{{ valor }}" {% if estado_seleccionado == valor %}selected{% endif %}>{{ etiqueta }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <button type="submit" class="btn btn-primary">Filtrar</button>
+            {% if query or estado_seleccionado %}
+                <a href="{% url 'orden_compra_list' %}" class="btn btn-secondary">Limpiar</a>
+            {% endif %}
+        </div>
+    </form>
+
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>N° Operación</th>
+                    <th>Fecha</th>
+                    <th>Proveedor</th>
+                    <th>Ítems</th>
+                    <th>Total</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for orden in ordenes %}
+                <tr>
+                    <td class="text-nowrap">
+                        <a href="{% url 'orden_compra_detalle' orden.id %}" class="table-link">
+                            <strong>#{{ orden.numero_operacion }}</strong>
+                        </a>
+                    </td>
+                    <td class="text-nowrap">{{ orden.fecha|date:"d/m/Y H:i" }}</td>
+                    <td><strong>{{ orden.proveedor.nombre }}</strong></td>
+                    <td>{{ orden.items.count }} art.</td>
+                    <td class="text-nowrap"><strong>${{ orden.total|floatformat:2 }}</strong></td>
+                    <td>
+                        {% if orden.estado == 'PENDIENTE' %}
+                            <span class="badge badge-info">Pendiente</span>
+                        {% elif orden.estado == 'RECIBIDA' %}
+                            <span class="badge badge-success">Recibida</span>
+                        {% else %}
+                            <span class="badge badge-danger">Cancelada</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-nowrap">
+                        <a href="{% url 'orden_compra_detalle' orden.id %}" class="btn btn-action btn-sm">Ver Detalle</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="empty-row">No se encontraron órdenes de compra.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% include 'inventario/includes/pagination.html' %}
+</div>
+{% endblock %}
