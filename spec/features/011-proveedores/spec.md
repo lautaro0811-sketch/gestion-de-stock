@@ -1,6 +1,6 @@
 # 011 · Proveedores
 
-**Estado:** propuesta
+**Estado:** implementado ✅
 
 ## Qué hace
 
@@ -12,13 +12,13 @@ Es la base para poder registrar órdenes de compra (012): antes de poder comprar
 
 ## Criterios de aceptación
 
-- [ ] Existe un modelo `Proveedor` con los campos: `nombre` (razón social), `tipo_documento` (DNI/CUIT), `numero_documento` (único), `domicilio` (opcional), `correo` (opcional), `telefono` (opcional) y `activo` (booleano, por defecto `True`).
-- [ ] La validación de `tipo_documento`/`numero_documento` reutiliza la misma lógica ya implementada para `Cliente`, extraída a una función o validador compartido: DNI de 7 u 8 dígitos y CUIT de 11 dígitos, sin verificar el dígito verificador.
-- [ ] El sistema impide registrar dos proveedores con el mismo número de documento.
-- [ ] Hay una vista "Proveedores" accesible desde el menú lateral del dashboard, con alta (formulario) y listado paginado de proveedores activos.
-- [ ] Existe un buscador que filtra por número de documento, por nombre (coincidencia parcial) o por número de proveedor (ID exacto).
-- [ ] Existe una acción de baja lógica (desactivar proveedor), que cambia `activo` a `False` sin borrar el registro.
-- [ ] Los tests existentes de `Cliente` (incluyendo validación de documento) siguen pasando después de extraer la lógica compartida.
+- [x] Existe un modelo `Proveedor` con los campos: `nombre` (razón social), `tipo_documento` (DNI/CUIT), `numero_documento` (único), `domicilio` (opcional), `correo` (opcional), `telefono` (opcional) y `activo` (booleano, por defecto `True`).
+- [x] La validación de `tipo_documento`/`numero_documento` reutiliza la misma lógica ya implementada para `Cliente`, extraída a una función o validador compartido: DNI de 7 u 8 dígitos y CUIT de 11 dígitos, sin verificar el dígito verificador.
+- [x] El sistema impide registrar dos proveedores con el mismo número de documento.
+- [x] Hay una vista "Proveedores" accesible desde el menú lateral del dashboard, con alta (formulario) y listado paginado de proveedores activos.
+- [x] Existe un buscador que filtra por número de documento, por nombre (coincidencia parcial) o por número de proveedor (ID exacto).
+- [x] Existe una acción de baja lógica (desactivar proveedor), que cambia `activo` a `False` sin borrar el registro.
+- [x] Los tests existentes de `Cliente` (incluyendo validación de documento) siguen pasando después de extraer la lógica compartida.
 
 ## Fuera de alcance
 

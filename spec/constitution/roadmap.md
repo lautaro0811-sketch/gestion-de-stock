@@ -14,6 +14,7 @@ _Features completadas, en orden de implementación._
 6. **008 · Pedidos de Venta** — Generación de pedidos confirmados, descuento de stock, correlativo anual, inmutabilidad y cancelación con reintegro de mercadería.
 7. **009 · Generación de Pedido en PDF (Remito)** — Descarga de remitos PDF para pedidos con datos del cliente, operación y detalle de ítems.
 8. **010 · Caja y Flujo de Efectivo** — Registro automático de ingresos y egresos por pedidos, egresos manuales y dashboard con saldo e historial.
+9. **011 · Proveedores** — Padrón con validación DNI/CUIT compartida con clientes, búsqueda por documento, nombre e ID, baja lógica y listado paginado.
 
 > Nota de negocio: la validación del CUIT se mantiene en formato operativo (11 dígitos) y no se incorpora el algoritmo fiscal completo para no complejizar la lógica de datos del sistema actual.
 
