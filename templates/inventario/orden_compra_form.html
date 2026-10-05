@@ -35,7 +35,10 @@
 
         <div class="card-header-flex">
             <h3 class="card-title">Artículos de la Orden</h3>
-            <button type="button" id="btn-add-item" class="btn btn-primary btn-sm">+ Agregar Producto</button>
+            <div class="action-bar">
+                <button type="button" id="btn-add-item" class="btn btn-primary btn-sm">+ Agregar Producto</button>
+                <button type="button" id="btn-nuevo-producto" class="btn btn-secondary btn-sm">+ Nuevo Producto</button>
+            </div>
         </div>
 
         {{ formset.management_form }}
@@ -114,11 +117,39 @@
     </form>
 </div>
 
+<dialog id="modalProducto" aria-labelledby="modal-producto-titulo">
+    <div class="card">
+        <div class="card-header-flex">
+            <h2 class="card-title" id="modal-producto-titulo">Nuevo Producto</h2>
+            <button type="button" id="btn-cerrar-modal-producto" class="btn btn-secondary btn-sm" aria-label="Cerrar">Cerrar</button>
+        </div>
+        <form id="form-producto-ajax" method="post" action="{% url 'producto_crear_ajax' %}">
+            {% csrf_token %}
+            <div class="field-error" data-product-errors="__all__" role="alert"></div>
+            {% for field in producto_form %}
+            <div class="form-group">
+                <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}<div class="form-desc">{{ field.help_text }}</div>{% endif %}
+                <div class="field-error" data-product-errors="{{ field.name }}" role="alert"></div>
+            </div>
+            {% endfor %}
+            <div class="form-actions">
+                <button type="button" id="btn-cancelar-modal-producto" class="btn btn-secondary">Cancelar</button>
+                <button type="submit" id="btn-guardar-producto" class="btn btn-success">Guardar Producto</button>
+            </div>
+        </form>
+    </div>
+</dialog>
+
 <script>
 document.addEventListener("DOMContentLoaded", function () {
     const tbody = document.getElementById("items-tbody");
     const totalForms = document.getElementById("id_items-TOTAL_FORMS");
     const rowTemplate = document.getElementById("empty-item-row");
+    const modalProducto = document.getElementById("modalProducto");
+    const formProducto = document.getElementById("form-producto-ajax");
+    const botonGuardarProducto = document.getElementById("btn-guardar-producto");
 
     function updateTotal() {
         let total = 0;
@@ -159,6 +190,111 @@ document.addEventListener("DOMContentLoaded", function () {
         bindRow(tbody.lastElementChild);
         updateTotal();
     });
+
+    document.getElementById("btn-nuevo-producto").addEventListener("click", function () {
+        document.getElementById("modalProducto").showModal();
+    });
+    document.getElementById("btn-cerrar-modal-producto").addEventListener("click", function () {
+        modalProducto.close();
+    });
+    document.getElementById("btn-cancelar-modal-producto").addEventListener("click", function () {
+        modalProducto.close();
+    });
+
+    function clearProductErrors() {
+        formProducto.querySelectorAll("[data-product-errors]").forEach(function (container) {
+            container.textContent = "";
+        });
+    }
+
+    function showProductErrors(errors) {
+        clearProductErrors();
+        Object.keys(errors).forEach(function (fieldName) {
+            const container = Array.from(
+                formProducto.querySelectorAll("[data-product-errors]")
+            ).find(function (element) {
+                return element.dataset.productErrors === fieldName;
+            });
+            if (!container) return;
+
+            container.textContent = errors[fieldName].map(function (error) {
+                return typeof error === "string" ? error : error.message;
+            }).join(" ");
+        });
+    }
+
+    function addProductToFormset(producto) {
+        const option = new Option(producto.nombre, producto.id);
+        tbody.querySelectorAll(".item-producto").forEach(function (select) {
+            select.add(new Option(option.text, option.value));
+        });
+        rowTemplate.content.querySelectorAll(".item-producto").forEach(function (select) {
+            select.add(new Option(option.text, option.value));
+        });
+
+        let emptySelect = Array.from(tbody.querySelectorAll(".item-row")).reduce(
+            function (available, row) {
+                const deleteInput = row.querySelector("input[name$='-DELETE']");
+                const select = row.querySelector(".item-producto");
+                if (
+                    select &&
+                    !row.hidden &&
+                    !(deleteInput && deleteInput.checked) &&
+                    !select.value
+                ) {
+                    available = select;
+                }
+                return available;
+            },
+            null
+        );
+
+        if (!emptySelect) {
+            document.getElementById("btn-add-item").click();
+            emptySelect = tbody.lastElementChild.querySelector(".item-producto");
+        }
+        emptySelect.value = String(producto.id);
+        emptySelect.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    formProducto.addEventListener("submit", async function (event) {
+        event.preventDefault();
+        clearProductErrors();
+        botonGuardarProducto.disabled = true;
+
+        try {
+            const formData = new FormData(formProducto);
+            const response = await fetch(formProducto.action, {
+                method: "POST",
+                body: formData,
+                credentials: "same-origin",
+                headers: {
+                    "X-CSRFToken": formData.get("csrfmiddlewaretoken"),
+                    "X-Requested-With": "XMLHttpRequest",
+                    "Accept": "application/json"
+                }
+            });
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                showProductErrors(result.errors || {
+                    "__all__": ["No se pudo guardar el producto. Revisá los datos e intentá nuevamente."]
+                });
+                return;
+            }
+
+            addProductToFormset(result);
+            formProducto.reset();
+            modalProducto.close();
+        } catch (error) {
+            showProductErrors({
+                "__all__": ["No se pudo conectar para guardar el producto. Intentá nuevamente."]
+            });
+        } finally {
+            botonGuardarProducto.disabled = false;
+        }
+    });
+
     updateTotal();
 });
 </script>

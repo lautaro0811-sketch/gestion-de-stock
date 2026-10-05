@@ -1549,6 +1549,57 @@ class OrdenesCompraServicesTest(TestCase):
         )
 
 
+class ProductoCrearAjaxViewTest(TestCase):
+    def setUp(self):
+        self.categoria = Categoria.objects.create(nombre="Herramientas rápidas")
+
+    def test_crea_producto_y_devuelve_datos_json(self):
+        response = self.client.post(
+            reverse("producto_crear_ajax"),
+            {
+                "nombre": "Llave inglesa",
+                "categoria": self.categoria.id,
+                "precio_unitario": "1250.00",
+                "stock_minimo": 3,
+                "descripcion": "",
+                "stock_inicial": 2,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(
+            data,
+            {
+                "success": True,
+                "id": Producto.objects.get(nombre="Llave inglesa").id,
+                "nombre": "Llave inglesa",
+            },
+        )
+        producto = Producto.objects.get(pk=data["id"])
+        self.assertEqual(producto.stock_actual, 2)
+        self.assertTrue(Movimiento.objects.filter(producto=producto).exists())
+
+    def test_producto_invalido_devuelve_errores_del_formulario(self):
+        response = self.client.post(
+            reverse("producto_crear_ajax"),
+            {
+                "nombre": "",
+                "categoria": self.categoria.id,
+                "precio_unitario": "1250.00",
+                "stock_minimo": 3,
+                "descripcion": "",
+                "stock_inicial": 0,
+            },
+        )
+
+        self.assertEqual(response.status_code, 400)
+        data = response.json()
+        self.assertFalse(data["success"])
+        self.assertIn("nombre", data["errors"])
+        self.assertFalse(Producto.objects.exists())
+
+
 class PedidosViewsAndFormsTest(TestCase):
     def setUp(self):
         User = get_user_model()

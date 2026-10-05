@@ -10,7 +10,7 @@ from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import connection, transaction
 from django.db.models import F, Q, Count, Sum
-from django.http import FileResponse, HttpResponse
+from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.utils import timezone
@@ -28,6 +28,7 @@ from .forms import (
     PedidoForm,
     ProductoCrearForm,
     ProductoEditarForm,
+    ProductoForm,
     ProveedorForm,
 )
 from .models import (
@@ -134,6 +135,35 @@ def producto_crear(request):
         form = ProductoCrearForm()
 
     return render(request, "inventario/producto_form.html", {"form": form, "titulo": "Nuevo Producto"})
+
+
+@require_POST
+@transaction.atomic
+def producto_crear_ajax(request):
+    form = ProductoForm(request.POST)
+    if not form.is_valid():
+        return JsonResponse(
+            {"success": False, "errors": form.errors.get_json_data()},
+            status=400,
+        )
+
+    producto = form.save(commit=False)
+    producto.stock_actual = 0
+    producto.save()
+
+    stock_inicial = form.cleaned_data.get("stock_inicial") or 0
+    if stock_inicial > 0:
+        usuario = request.user if request.user.is_authenticated else None
+        registrar_entrada(
+            producto_id=producto.id,
+            cantidad=stock_inicial,
+            observacion="Stock inicial de apertura de producto",
+            usuario=usuario,
+        )
+
+    return JsonResponse(
+        {"success": True, "id": producto.id, "nombre": producto.nombre}
+    )
 
 
 def producto_editar(request, pk):
@@ -677,6 +707,7 @@ def orden_compra_crear(request):
         {
             "form": form,
             "formset": formset,
+            "producto_form": ProductoForm(),
         },
     )
 

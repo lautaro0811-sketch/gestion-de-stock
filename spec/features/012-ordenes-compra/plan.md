@@ -22,6 +22,7 @@ Se modela `OrdenCompra`/`OrdenCompraItem` como el espejo de `Pedido`/`PedidoItem
 7. **Templates**: listado, detalle (con botones Recibir/Cancelar condicionados al estado) y formulario de alta, siguiendo el patrón visual de Pedidos.
 8. **Navegación — `templates/base.html`**: link "Órdenes de Compra" en el sidebar.
 9. **Admin**: registrar `OrdenCompra` y `OrdenCompraItem`.
+10. **Alta rápida de productos**: exponer un endpoint POST AJAX que reutilice `ProductoForm` y habilitar desde el formulario de orden un diálogo `<dialog>` con `fetch()` para crear el producto sin descartar los datos ingresados; agregarlo a los selects de ítems y enfocarlo en un renglón vacío.
 
 ## Decisiones
 

@@ -23,6 +23,7 @@ Refleja cómo funciona una compra real: primero se pacta con el proveedor (se "p
 - [x] No se pueden editar órdenes existentes: solo visualizar, recibir o cancelar (misma regla de inmutabilidad que `Pedido`).
 - [x] Los movimientos de `ENTRADA` generados por una recepción muestran en el historial a qué orden de compra pertenecen (`Movimiento.orden_compra`).
 - [x] Hay una vista "Órdenes de Compra" en el dashboard: listado con estado, proveedor y número de operación; vista de detalle con los ítems y botones de Recibir/Cancelar según el estado.
+- [x] Desde el formulario de una orden se puede crear un producto en un diálogo nativo, sin recargar la página ni perder los datos ingresados; el producto nuevo queda disponible y seleccionado en un renglón vacío.
 
 ## Fuera de alcance
 

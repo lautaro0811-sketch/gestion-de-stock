@@ -19,3 +19,4 @@
 - [x] Correr `python manage.py test` (suite completa) y confirmar que todo pasa.
 - [x] Validar contra los criterios de aceptación de `spec.md`.
 - [x] Mover la feature a "Hecho" en `../../constitution/roadmap.md`.
+- [x] Agregar alta rápida de productos al formulario de orden mediante `ProductoForm`, endpoint AJAX y diálogo HTML nativo sin perder datos del formset.
