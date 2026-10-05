@@ -14,6 +14,7 @@ from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 from xhtml2pdf import pisa
 
 from .forms import (
@@ -22,20 +23,35 @@ from .forms import (
     EgresoCajaForm,
     ItemPedidoFormSet,
     MovimientoUnificadoForm,
+    OrdenCompraForm,
+    OrdenCompraItemFormSet,
     PedidoForm,
     ProductoCrearForm,
     ProductoEditarForm,
     ProveedorForm,
 )
-from .models import Categoria, Cliente, Movimiento, MovimientoCaja, Pedido, PedidoItem, Producto, Proveedor
+from .models import (
+    Categoria,
+    Cliente,
+    Movimiento,
+    MovimientoCaja,
+    OrdenCompra,
+    Pedido,
+    PedidoItem,
+    Producto,
+    Proveedor,
+)
 
 from .services import (
     cancelar_pedido,
+    cancelar_orden_compra,
+    crear_orden_compra,
     crear_pedido,
     registrar_ajuste,
     registrar_egreso_caja,
     registrar_entrada,
     registrar_salida,
+    recibir_mercaderia,
 )
 
 
@@ -350,7 +366,12 @@ def movimiento_historial(request):
     tipo_filtro = request.GET.get("tipo", "").strip()
     producto_filtro = request.GET.get("producto", "").strip()
 
-    movimientos = Movimiento.objects.select_related("producto__categoria", "created_by", "pedido").all()
+    movimientos = Movimiento.objects.select_related(
+        "producto__categoria",
+        "created_by",
+        "pedido",
+        "orden_compra",
+    ).all()
 
     if tipo_filtro:
         movimientos = movimientos.filter(tipo=tipo_filtro)
@@ -571,6 +592,130 @@ def pedido_cancelar(request, pk):
         "inventario/pedido_confirm_cancel.html",
         {"pedido": pedido},
     )
+
+
+def orden_compra_list(request):
+    ordenes = OrdenCompra.objects.select_related("proveedor").prefetch_related(
+        "items__producto"
+    )
+    query = request.GET.get("q", "").strip()
+    estado = request.GET.get("estado", "").strip()
+
+    if query:
+        ordenes = ordenes.filter(
+            Q(numero_operacion__icontains=query) | Q(proveedor__nombre__icontains=query)
+        )
+    if estado:
+        ordenes = ordenes.filter(estado=estado)
+
+    paginator = Paginator(ordenes, 15)
+    page_obj = paginator.get_page(request.GET.get("page"))
+    return render(
+        request,
+        "inventario/orden_compra_list.html",
+        {
+            "ordenes": page_obj,
+            "page_obj": page_obj,
+            "query": query,
+            "estado_seleccionado": estado,
+            "estados": OrdenCompra.EstadoOrdenCompra.choices,
+        },
+    )
+
+
+@transaction.atomic
+def orden_compra_crear(request):
+    if request.method == "POST":
+        form = OrdenCompraForm(request.POST)
+        formset = OrdenCompraItemFormSet(request.POST)
+        if form.is_valid() and formset.is_valid():
+            proveedor = form.cleaned_data["proveedor"]
+            fecha_orden = timezone.make_aware(
+                datetime.combine(form.cleaned_data["fecha"], timezone.now().time())
+            )
+            items_data = []
+            for item_form in formset:
+                if item_form.cleaned_data and not item_form.cleaned_data.get("DELETE", False):
+                    producto = item_form.cleaned_data.get("producto")
+                    cantidad = item_form.cleaned_data.get("cantidad")
+                    precio = item_form.cleaned_data.get("precio_unitario_compra")
+                    if producto and cantidad and precio is not None:
+                        items_data.append(
+                            {
+                                "producto_id": producto.id,
+                                "cantidad": cantidad,
+                                "precio_unitario_compra": precio,
+                            }
+                        )
+
+            if not items_data:
+                messages.error(request, "Debe agregar al menos un producto a la orden de compra.")
+            else:
+                try:
+                    orden = crear_orden_compra(
+                        proveedor_id=proveedor.id,
+                        items_data=items_data,
+                        observacion=form.cleaned_data.get("observacion", ""),
+                        fecha=fecha_orden,
+                    )
+                    messages.success(
+                        request,
+                        f"Orden de compra #{orden.numero_operacion} creada para '{proveedor.nombre}'.",
+                    )
+                    return redirect("orden_compra_detalle", pk=orden.pk)
+                except ValidationError as error:
+                    err_msg = error.message if hasattr(error, "message") else ", ".join(error.messages)
+                    messages.error(request, err_msg)
+                    form.add_error(None, err_msg)
+    else:
+        form = OrdenCompraForm()
+        formset = OrdenCompraItemFormSet()
+
+    return render(
+        request,
+        "inventario/orden_compra_form.html",
+        {
+            "form": form,
+            "formset": formset,
+        },
+    )
+
+
+def orden_compra_detalle(request, pk):
+    orden = get_object_or_404(
+        OrdenCompra.objects.select_related("proveedor").prefetch_related(
+            "items__producto", "movimientos__producto"
+        ),
+        pk=pk,
+    )
+    return render(request, "inventario/orden_compra_detalle.html", {"orden": orden})
+
+
+@require_POST
+def orden_compra_recibir(request, pk):
+    get_object_or_404(OrdenCompra, pk=pk)
+    try:
+        orden = recibir_mercaderia(
+            orden_compra_id=pk,
+            usuario=request.user if request.user.is_authenticated else None,
+        )
+        messages.success(request, f"Orden de compra {orden.numero_operacion} recibida correctamente.")
+    except ValidationError as error:
+        err_msg = error.message if hasattr(error, "message") else ", ".join(error.messages)
+        messages.error(request, err_msg)
+    return redirect("orden_compra_detalle", pk=pk)
+
+
+@require_POST
+def orden_compra_cancelar(request, pk):
+    get_object_or_404(OrdenCompra, pk=pk)
+    try:
+        orden = cancelar_orden_compra(orden_compra_id=pk)
+        messages.success(request, f"Orden de compra {orden.numero_operacion} cancelada.")
+    except ValidationError as error:
+        err_msg = error.message if hasattr(error, "message") else ", ".join(error.messages)
+        messages.error(request, err_msg)
+    return redirect("orden_compra_detalle", pk=pk)
 
 
 @transaction.atomic

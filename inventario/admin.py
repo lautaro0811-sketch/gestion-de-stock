@@ -1,6 +1,16 @@
 from django.contrib import admin
 
-from .models import Categoria, Cliente, Movimiento, Pedido, PedidoItem, Producto, Proveedor
+from .models import (
+    Categoria,
+    Cliente,
+    Movimiento,
+    OrdenCompra,
+    OrdenCompraItem,
+    Pedido,
+    PedidoItem,
+    Producto,
+    Proveedor,
+)
 
 
 @admin.register(Cliente)
@@ -122,6 +132,63 @@ class PedidoAdmin(admin.ModelAdmin):
         "fecha_actualizacion",
     )
     inlines = [PedidoItemInline]
+    actions = None
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+class OrdenCompraItemInline(admin.TabularInline):
+    model = OrdenCompraItem
+    extra = 0
+    readonly_fields = ("producto", "producto_nombre", "cantidad", "precio_unitario_compra", "subtotal")
+    can_delete = False
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(OrdenCompra)
+class OrdenCompraAdmin(admin.ModelAdmin):
+    list_display = ("numero_operacion", "proveedor", "fecha", "estado", "total", "fecha_creacion")
+    list_filter = ("estado", "fecha")
+    search_fields = ("numero_operacion", "proveedor__nombre")
+    readonly_fields = (
+        "numero_operacion",
+        "proveedor",
+        "fecha",
+        "estado",
+        "observacion",
+        "fecha_creacion",
+        "fecha_actualizacion",
+        "total",
+    )
+    inlines = [OrdenCompraItemInline]
+    actions = None
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(OrdenCompraItem)
+class OrdenCompraItemAdmin(admin.ModelAdmin):
+    list_display = ("orden_compra", "producto", "cantidad", "precio_unitario_compra", "subtotal")
+    list_filter = ("orden_compra__estado",)
+    search_fields = ("orden_compra__numero_operacion", "producto__nombre")
+    readonly_fields = (
+        "orden_compra",
+        "producto",
+        "producto_nombre",
+        "cantidad",
+        "precio_unitario_compra",
+        "subtotal",
+    )
     actions = None
 
     def has_add_permission(self, request):

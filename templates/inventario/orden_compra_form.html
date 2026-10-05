@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+
+{% block title %}Nueva Orden de Compra{% endblock %}
+{% block topbar_title %}Registrar Orden de Compra{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header-flex">
+        <h2 class="card-title">Datos de la Orden de Compra</h2>
+    </div>
+
+    <form method="post" id="orden-compra-form">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        <div class="form-grid-row">
+            <div class="form-group">
+                <label class="form-label">Proveedor *</label>
+                {{ form.proveedor }}
+                {{ form.proveedor.errors }}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Fecha de Compra *</label>
+                {{ form.fecha }}
+                {{ form.fecha.errors }}
+            </div>
+        </div>
+
+        <div class="form-full-row">
+            <div class="form-group">
+                <label class="form-label">Observaciones (Opcional)</label>
+                {{ form.observacion }}
+                {{ form.observacion.errors }}
+            </div>
+        </div>
+
+        <div class="card-header-flex">
+            <h3 class="card-title">Artículos de la Orden</h3>
+            <button type="button" id="btn-add-item" class="btn btn-primary btn-sm">+ Agregar Producto</button>
+        </div>
+
+        {{ formset.management_form }}
+        {{ formset.non_form_errors }}
+        <div class="table-responsive">
+            <table id="items-table">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Precio Unit. de Compra</th>
+                        <th>Cantidad</th>
+                        <th>Subtotal</th>
+                        <th>Quitar</th>
+                    </tr>
+                </thead>
+                <tbody id="items-tbody">
+                    {% for item_form in formset %}
+                    <tr class="item-row">
+                        <td>
+                            {{ item_form.id }}
+                            {{ item_form.producto }}
+                            {{ item_form.producto.errors }}
+                        </td>
+                        <td>
+                            {{ item_form.precio_unitario_compra }}
+                            {{ item_form.precio_unitario_compra.errors }}
+                        </td>
+                        <td>
+                            {{ item_form.cantidad }}
+                            {{ item_form.cantidad.errors }}
+                        </td>
+                        <td><strong class="subtotal-display">$0.00</strong></td>
+                        <td>
+                            <span hidden>{{ item_form.DELETE }}</span>
+                            <button type="button" class="btn btn-danger btn-sm btn-remove-row">Quitar</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="3">TOTAL</td>
+                        <td colspan="2"><strong id="orden-total-display">$0.00</strong></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <template id="empty-item-row">
+            <tr class="item-row">
+                <td>
+                    {{ formset.empty_form.id }}
+                    {{ formset.empty_form.producto }}
+                    {{ formset.empty_form.producto.errors }}
+                </td>
+                <td>
+                    {{ formset.empty_form.precio_unitario_compra }}
+                    {{ formset.empty_form.precio_unitario_compra.errors }}
+                </td>
+                <td>
+                    {{ formset.empty_form.cantidad }}
+                    {{ formset.empty_form.cantidad.errors }}
+                </td>
+                <td><strong class="subtotal-display">$0.00</strong></td>
+                <td>
+                    <span hidden>{{ formset.empty_form.DELETE }}</span>
+                    <button type="button" class="btn btn-danger btn-sm btn-remove-row">Quitar</button>
+                </td>
+            </tr>
+        </template>
+
+        <div class="form-actions">
+            <a href="{% url 'orden_compra_list' %}" class="btn btn-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-success">Crear Orden de Compra</button>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const tbody = document.getElementById("items-tbody");
+    const totalForms = document.getElementById("id_items-TOTAL_FORMS");
+    const rowTemplate = document.getElementById("empty-item-row");
+
+    function updateTotal() {
+        let total = 0;
+        tbody.querySelectorAll(".item-row").forEach(function (row) {
+            const deleted = row.querySelector("input[name$='-DELETE']");
+            const quantity = parseInt(row.querySelector(".item-cantidad").value, 10) || 0;
+            const price = parseFloat(row.querySelector(".item-precio").value) || 0;
+            const subtotal = quantity * price;
+            row.querySelector(".subtotal-display").textContent = "$" + subtotal.toFixed(2);
+            if (!deleted || !deleted.checked) total += subtotal;
+        });
+        document.getElementById("orden-total-display").textContent = "$" + total.toFixed(2);
+    }
+
+    function bindRow(row) {
+        row.querySelectorAll(".item-producto, .item-cantidad, .item-precio").forEach(function (input) {
+            input.addEventListener("input", updateTotal);
+            input.addEventListener("change", updateTotal);
+        });
+        const deleteInput = row.querySelector("input[name$='-DELETE']");
+        row.querySelector(".btn-remove-row").addEventListener("click", function () {
+            if (deleteInput) {
+                deleteInput.checked = true;
+                row.hidden = true;
+            } else {
+                row.remove();
+            }
+            updateTotal();
+        });
+    }
+
+    tbody.querySelectorAll(".item-row").forEach(bindRow);
+    document.getElementById("btn-add-item").addEventListener("click", function () {
+        const index = parseInt(totalForms.value, 10);
+        const html = rowTemplate.innerHTML.replace(/__prefix__/g, index);
+        tbody.insertAdjacentHTML("beforeend", html);
+        totalForms.value = index + 1;
+        bindRow(tbody.lastElementChild);
+        updateTotal();
+    });
+    updateTotal();
+});
+</script>
+{% endblock %}

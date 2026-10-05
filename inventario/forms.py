@@ -3,7 +3,18 @@ from django.core.exceptions import ValidationError
 from django.forms import inlineformset_factory
 from django.utils import timezone
 
-from .models import Categoria, Cliente, Movimiento, MovimientoCaja, Pedido, PedidoItem, Producto, Proveedor
+from .models import (
+    Categoria,
+    Cliente,
+    Movimiento,
+    MovimientoCaja,
+    OrdenCompra,
+    OrdenCompraItem,
+    Pedido,
+    PedidoItem,
+    Producto,
+    Proveedor,
+)
 from .validators import validar_documento
 
 
@@ -287,6 +298,61 @@ ItemPedidoFormSet = inlineformset_factory(
 )
 
 PedidoItemFormSet = ItemPedidoFormSet
+
+
+class OrdenCompraForm(forms.ModelForm):
+    fecha = forms.DateField(
+        initial=timezone.now().date,
+        widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+        label="Fecha de compra",
+    )
+
+    class Meta:
+        model = OrdenCompra
+        fields = ["proveedor", "fecha", "observacion"]
+        labels = {
+            "proveedor": "Proveedor",
+            "observacion": "Observaciones",
+        }
+        widgets = {
+            "proveedor": forms.Select(attrs={"class": "form-control"}),
+            "observacion": forms.Textarea(
+                attrs={"class": "form-control", "rows": 2, "placeholder": "Observaciones opcionales..."}
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["proveedor"].queryset = Proveedor.objects.filter(activo=True).order_by("nombre")
+        if not self.initial.get("fecha"):
+            self.initial["fecha"] = timezone.now().date()
+
+
+class ItemOrdenCompraForm(forms.ModelForm):
+    class Meta:
+        model = OrdenCompraItem
+        fields = ["producto", "cantidad", "precio_unitario_compra"]
+        widgets = {
+            "producto": forms.Select(attrs={"class": "form-control item-producto"}),
+            "cantidad": forms.NumberInput(attrs={"class": "form-control item-cantidad", "min": 1, "value": 1}),
+            "precio_unitario_compra": forms.NumberInput(
+                attrs={"class": "form-control item-precio", "min": 0, "step": "0.01"}
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["producto"].queryset = Producto.objects.filter(activo=True).order_by("nombre")
+
+
+OrdenCompraItemFormSet = inlineformset_factory(
+    OrdenCompra,
+    OrdenCompraItem,
+    form=ItemOrdenCompraForm,
+    fields=["producto", "cantidad", "precio_unitario_compra"],
+    extra=1,
+    can_delete=True,
+)
 
 
 class EgresoCajaForm(forms.Form):
