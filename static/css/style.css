@@ -316,6 +316,22 @@ tr.row-normal     { background-color: var(--color-row-normal-bg); }
 .form-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; }
 .form-card-container { max-width: 580px; margin: 20px auto; }
 
+dialog#modalProducto {
+    margin: auto;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    max-width: 550px;
+    width: 100%;
+    background: var(--color-card-bg);
+}
+
+dialog#modalProducto::backdrop {
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(2px);
+}
+
 /* Utilidades */
 .text-muted { color: var(--color-text-muted); font-size: 0.9rem; }
 .text-nowrap { white-space: nowrap; }
@@ -564,4 +580,3 @@ body.remito-pdf {
     margin-top: 60px;
     text-align: center;
 }
-
