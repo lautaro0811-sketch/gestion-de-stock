@@ -1,6 +1,6 @@
 # 012 · Órdenes de Compra
 
-**Estado:** propuesta
+**Estado:** implementado ✅
 
 ## Qué hace
 
@@ -12,17 +12,17 @@ Refleja cómo funciona una compra real: primero se pacta con el proveedor (se "p
 
 ## Criterios de aceptación
 
-- [ ] Existe el modelo `OrdenCompra`: `proveedor` (FK), `numero_operacion` (único, formato `OC-AÑO-XXXX`, ej. `OC-2026-0001`), `fecha`, `estado` (`PENDIENTE` / `RECIBIDA` / `CANCELADA`), `observacion` (opcional).
-- [ ] Existe el modelo `OrdenCompraItem`: `orden_compra` (FK), `producto` (FK), `cantidad`, `precio_unitario_compra` (congelado al crear la orden, independiente del `precio_unitario` de venta del producto).
-- [ ] Al crear una orden de compra (estado inicial `PENDIENTE`), el stock de los productos **no se modifica**.
-- [ ] El número de operación se asigna de forma atómica, con el mismo criterio ya usado para `Pedido.numero_operacion`, pero con prefijo `OC-` para distinguirlo de los números de venta.
-- [ ] Existe una acción "Recibir mercadería" disponible solo para órdenes en estado `PENDIENTE`, que genera un movimiento de `ENTRADA` por cada ítem (vía `registrar_entrada`, vinculado a la orden), incrementa el stock real, y cambia el estado a `RECIBIDA`.
-- [ ] Una orden ya `RECIBIDA` no puede recibirse de nuevo (se evita duplicar el ingreso de stock).
-- [ ] Existe una acción "Cancelar" disponible solo para órdenes en estado `PENDIENTE`, que cambia el estado a `CANCELADA` sin generar ningún movimiento de stock (porque nunca se descontó nada).
-- [ ] Una orden `RECIBIDA` o ya `CANCELADA` no puede cancelarse de nuevo.
-- [ ] No se pueden editar órdenes existentes: solo visualizar, recibir o cancelar (misma regla de inmutabilidad que `Pedido`).
-- [ ] Los movimientos de `ENTRADA` generados por una recepción muestran en el historial a qué orden de compra pertenecen (`Movimiento.orden_compra`).
-- [ ] Hay una vista "Órdenes de Compra" en el dashboard: listado con estado, proveedor y número de operación; vista de detalle con los ítems y botones de Recibir/Cancelar según el estado.
+- [x] Existe el modelo `OrdenCompra`: `proveedor` (FK), `numero_operacion` (único, formato `OC-AÑO-XXXX`, ej. `OC-2026-0001`), `fecha`, `estado` (`PENDIENTE` / `RECIBIDA` / `CANCELADA`), `observacion` (opcional).
+- [x] Existe el modelo `OrdenCompraItem`: `orden_compra` (FK), `producto` (FK), `cantidad`, `precio_unitario_compra` (congelado al crear la orden, independiente del `precio_unitario` de venta del producto).
+- [x] Al crear una orden de compra (estado inicial `PENDIENTE`), el stock de los productos **no se modifica**.
+- [x] El número de operación se asigna de forma atómica, con el mismo criterio ya usado para `Pedido.numero_operacion`, pero con prefijo `OC-` para distinguirlo de los números de venta.
+- [x] Existe una acción "Recibir mercadería" disponible solo para órdenes en estado `PENDIENTE`, que genera un movimiento de `ENTRADA` por cada ítem (vía `registrar_entrada`, vinculado a la orden), incrementa el stock real, y cambia el estado a `RECIBIDA`.
+- [x] Una orden ya `RECIBIDA` no puede recibirse de nuevo (se evita duplicar el ingreso de stock).
+- [x] Existe una acción "Cancelar" disponible solo para órdenes en estado `PENDIENTE`, que cambia el estado a `CANCELADA` sin generar ningún movimiento de stock (porque nunca se descontó nada).
+- [x] Una orden `RECIBIDA` o ya `CANCELADA` no puede cancelarse de nuevo.
+- [x] No se pueden editar órdenes existentes: solo visualizar, recibir o cancelar (misma regla de inmutabilidad que `Pedido`).
+- [x] Los movimientos de `ENTRADA` generados por una recepción muestran en el historial a qué orden de compra pertenecen (`Movimiento.orden_compra`).
+- [x] Hay una vista "Órdenes de Compra" en el dashboard: listado con estado, proveedor y número de operación; vista de detalle con los ítems y botones de Recibir/Cancelar según el estado.
 
 ## Fuera de alcance
 

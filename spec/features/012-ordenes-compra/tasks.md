@@ -15,7 +15,7 @@
 - [x] Crear los templates (listado, detalle con botones condicionados al estado, formulario de alta), sin estilos en línea.
 - [x] Agregar el link "Órdenes de Compra" en el sidebar de base.html.
 - [x] Registrar OrdenCompra y OrdenCompraItem en el admin.
-- [ ] Tests: crear orden no modifica stock; recibir mercadería incrementa stock y cambia estado; recibir una orden ya RECIBIDA es rechazado; cancelar una orden PENDIENTE no genera movimientos; cancelar una orden ya CANCELADA o ya RECIBIDA es rechazado; el número de operación con prefijo OC- no colisiona con los números de Pedido del mismo año; los movimientos de ENTRADA de una recepción muestran la orden de compra asociada.
-- [ ] Correr python manage.py test (suite completa) y confirmar que todo pasa.
-- [ ] Validar contra los criterios de aceptación de spec.md.
-- [ ] Mover la feature a "Hecho" en ../../constitution/roadmap.md.
+- [x] Tests: crear orden no modifica stock; recibir mercadería incrementa stock y cambia estado; recibir una orden ya RECIBIDA es rechazado; cancelar una orden PENDIENTE no genera movimientos; cancelar una orden ya CANCELADA o ya RECIBIDA es rechazado; el número de operación con prefijo OC- no colisiona con los números de Pedido del mismo año; los movimientos de ENTRADA de una recepción muestran la orden de compra asociada.
+- [x] Correr `python manage.py test` (suite completa) y confirmar que todo pasa.
+- [x] Validar contra los criterios de aceptación de `spec.md`.
+- [x] Mover la feature a "Hecho" en `../../constitution/roadmap.md`.
