@@ -25,8 +25,9 @@ from .forms import (
     PedidoForm,
     ProductoCrearForm,
     ProductoEditarForm,
+    ProveedorForm,
 )
-from .models import Categoria, Cliente, Movimiento, MovimientoCaja, Pedido, PedidoItem, Producto
+from .models import Categoria, Cliente, Movimiento, MovimientoCaja, Pedido, PedidoItem, Producto, Proveedor
 
 from .services import (
     cancelar_pedido,
@@ -217,6 +218,54 @@ def cliente_desactivar(request, pk):
         return redirect("cliente_list")
 
     return render(request, "inventario/cliente_confirm_delete.html", {"cliente": cliente})
+
+
+def proveedor_list_crear(request):
+    if request.method == "POST":
+        form = ProveedorForm(request.POST)
+        if form.is_valid():
+            proveedor = form.save()
+            messages.success(request, f"Proveedor '{proveedor.nombre}' registrado con éxito.")
+            return redirect("proveedor_list")
+    else:
+        form = ProveedorForm()
+
+    proveedores = Proveedor.objects.filter(activo=True)
+    query = request.GET.get("q", "").strip()
+    if query:
+        filtro = Q(nombre__icontains=query) | Q(numero_documento__icontains=query)
+        query_digits = "".join(c for c in query if c.isdigit())
+        if query_digits:
+            filtro |= Q(numero_documento__icontains=query_digits)
+            if query.isdigit():
+                filtro |= Q(id=int(query))
+        proveedores = proveedores.filter(filtro)
+
+    paginator = Paginator(proveedores, 15)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    return render(
+        request,
+        "inventario/proveedor_list.html",
+        {
+            "proveedores": page_obj,
+            "page_obj": page_obj,
+            "form": form,
+            "query": query,
+        },
+    )
+
+
+def proveedor_desactivar(request, pk):
+    proveedor = get_object_or_404(Proveedor, pk=pk, activo=True)
+    if request.method == "POST":
+        proveedor.activo = False
+        proveedor.save(update_fields=["activo"])
+        messages.success(request, f"Proveedor '{proveedor.nombre}' dado de baja correctamente.")
+        return redirect("proveedor_list")
+
+    return render(request, "inventario/proveedor_confirm_delete.html", {"proveedor": proveedor})
 
 
 

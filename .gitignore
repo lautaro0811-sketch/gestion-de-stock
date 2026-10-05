@@ -6,6 +6,8 @@ db.sqlite3
 .agents/
 
 # Entorno virtual
+.venv/
+.venv-1/
 venv/
 env/
 ENV/
@@ -19,4 +21,3 @@ __pycache__/
 # Configuración local de editores
 .vscode/
 .idea/
-

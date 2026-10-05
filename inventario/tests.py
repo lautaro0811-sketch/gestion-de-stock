@@ -25,6 +25,7 @@ from inventario.forms import (
     PedidoItemFormSet,
     ProductoCrearForm,
     ProductoEditarForm,
+    ProveedorForm,
 )
 from inventario.models import (
     Categoria,
@@ -34,6 +35,7 @@ from inventario.models import (
     Pedido,
     PedidoItem,
     Producto,
+    Proveedor,
 )
 from inventario.services import (
     cancelar_pedido,
@@ -1062,6 +1064,192 @@ class ClienteViewsTest(TestCase):
         self.assertFalse(page_obj2.has_next())
 
 
+class ProveedorModelAndFormTest(TestCase):
+    def test_dni_7_y_8_digitos_y_cuit_de_11_aceptados(self):
+        proveedor_dni_7 = Proveedor(
+            nombre="Proveedor DNI 7",
+            tipo_documento="DNI",
+            numero_documento="7.123.456",
+        )
+        proveedor_dni_7.full_clean()
+        proveedor_dni_7.save()
+        self.assertEqual(proveedor_dni_7.numero_documento, "7123456")
+
+        proveedor_dni_8 = Proveedor(
+            nombre="Proveedor DNI 8",
+            tipo_documento="DNI",
+            numero_documento="40.123.456",
+        )
+        proveedor_dni_8.full_clean()
+        proveedor_dni_8.save()
+        self.assertEqual(proveedor_dni_8.numero_documento, "40123456")
+
+        proveedor_cuit = Proveedor(
+            nombre="Proveedor CUIT",
+            tipo_documento="CUIT",
+            numero_documento="20-12345678-0",
+        )
+        proveedor_cuit.full_clean()
+        proveedor_cuit.save()
+        self.assertEqual(proveedor_cuit.numero_documento, "20123456780")
+
+    def test_longitudes_invalidas_rechazadas_en_modelo_y_formulario(self):
+        for tipo, numero in (("DNI", "123456"), ("DNI", "123456789"), ("CUIT", "3054668997"), ("CUIT", "305466899791")):
+            with self.subTest(tipo=tipo, numero=numero):
+                proveedor = Proveedor(
+                    nombre="Documento inválido",
+                    tipo_documento=tipo,
+                    numero_documento=numero,
+                )
+                with self.assertRaises(ValidationError) as ctx:
+                    proveedor.full_clean()
+                self.assertIn("numero_documento", ctx.exception.message_dict)
+
+                form = ProveedorForm(data={
+                    "nombre": "Documento inválido",
+                    "tipo_documento": tipo,
+                    "numero_documento": numero,
+                })
+                self.assertFalse(form.is_valid())
+                self.assertIn("numero_documento", form.errors)
+
+    def test_rechazo_numero_documento_duplicado_en_modelo_y_formulario(self):
+        Proveedor.objects.create(
+            nombre="Proveedor Uno",
+            tipo_documento="DNI",
+            numero_documento="11223344",
+        )
+        with transaction.atomic():
+            with self.assertRaises(IntegrityError):
+                Proveedor.objects.create(
+                    nombre="Proveedor Dos",
+                    tipo_documento="DNI",
+                    numero_documento="11223344",
+                )
+
+        form_duplicado = ProveedorForm(data={
+            "nombre": "Proveedor Tres",
+            "tipo_documento": "DNI",
+            "numero_documento": "11.223.344",
+        })
+        self.assertFalse(form_duplicado.is_valid())
+        self.assertIn("numero_documento", form_duplicado.errors)
+
+
+class ProveedorViewsTest(TestCase):
+    def setUp(self):
+        self.proveedor_activo_1 = Proveedor.objects.create(
+            nombre="Distribuidora Norte",
+            tipo_documento="DNI",
+            numero_documento="20111222",
+            domicilio="Calle Falsa 123",
+            correo="norte@test.com",
+            telefono="1144556677",
+        )
+        self.proveedor_activo_2 = Proveedor.objects.create(
+            nombre="Insumos Fernandez",
+            tipo_documento="CUIT",
+            numero_documento="30546689979",
+            domicilio="Av. Libertador 1000",
+            correo="fernandez@test.com",
+            telefono="1188990011",
+        )
+        self.proveedor_inactivo = Proveedor.objects.create(
+            nombre="Proveedor Inactivo",
+            tipo_documento="DNI",
+            numero_documento="12345678",
+            activo=False,
+        )
+
+    def test_alta_proveedor_valida_y_resalta_seccion_activa(self):
+        response = self.client.post(
+            reverse("proveedor_list"),
+            {
+                "nombre": "Lucía Insumos",
+                "tipo_documento": "DNI",
+                "numero_documento": "35.777.888",
+                "domicilio": "San Martín 450",
+                "correo": "lucia@test.com",
+                "telefono": "1133221100",
+            },
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Proveedor &#x27;Lucía Insumos&#x27; registrado con éxito.")
+        self.assertContains(response, 'href="/proveedores/" class="sidebar-link active"')
+
+        proveedor = Proveedor.objects.get(numero_documento="35777888")
+        self.assertEqual(proveedor.nombre, "Lucía Insumos")
+        self.assertEqual(proveedor.tipo_documento, "DNI")
+        self.assertTrue(proveedor.activo)
+
+    def test_listado_solo_muestra_proveedores_activos(self):
+        response = self.client.get(reverse("proveedor_list"))
+        self.assertEqual(response.status_code, 200)
+
+        nombres = [proveedor.nombre for proveedor in response.context["proveedores"]]
+        self.assertIn("Distribuidora Norte", nombres)
+        self.assertIn("Insumos Fernandez", nombres)
+        self.assertNotIn("Proveedor Inactivo", nombres)
+        self.assertContains(response, "DNI 20111222")
+        self.assertContains(response, "CUIT 30546689979")
+
+    def test_busqueda_por_documento_formateado(self):
+        response = self.client.get(reverse("proveedor_list"), {"q": "30-54668997-9"})
+        nombres = [proveedor.nombre for proveedor in response.context["proveedores"]]
+        self.assertIn("Insumos Fernandez", nombres)
+        self.assertNotIn("Distribuidora Norte", nombres)
+
+    def test_busqueda_por_nombre_parcial(self):
+        response = self.client.get(reverse("proveedor_list"), {"q": "Fernan"})
+        nombres = [proveedor.nombre for proveedor in response.context["proveedores"]]
+        self.assertIn("Insumos Fernandez", nombres)
+        self.assertNotIn("Distribuidora Norte", nombres)
+
+    def test_busqueda_por_id_exacto(self):
+        response = self.client.get(
+            reverse("proveedor_list"),
+            {"q": str(self.proveedor_activo_1.id)},
+        )
+        nombres = [proveedor.nombre for proveedor in response.context["proveedores"]]
+        self.assertEqual(nombres, ["Distribuidora Norte"])
+
+    def test_baja_logica_confirma_desactiva_y_no_elimina(self):
+        url = reverse("proveedor_desactivar", kwargs={"pk": self.proveedor_activo_1.pk})
+        confirmacion = self.client.get(url)
+        self.assertEqual(confirmacion.status_code, 200)
+        self.assertContains(confirmacion, "Distribuidora Norte")
+        self.assertContains(confirmacion, 'href="/proveedores/" class="sidebar-link active"')
+
+        response = self.client.post(url, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.proveedor_activo_1.refresh_from_db()
+        self.assertFalse(self.proveedor_activo_1.activo)
+        self.assertTrue(Proveedor.objects.filter(pk=self.proveedor_activo_1.pk).exists())
+
+        nombres = [proveedor.nombre for proveedor in response.context["proveedores"]]
+        self.assertNotIn("Distribuidora Norte", nombres)
+
+    def test_paginacion_proveedores(self):
+        for i in range(1, 26):
+            Proveedor.objects.create(
+                nombre=f"Proveedor Paginado {i:02d}",
+                tipo_documento="DNI",
+                numero_documento=f"500000{i:02d}",
+            )
+
+        response = self.client.get(reverse("proveedor_list"))
+        page_obj = response.context["page_obj"]
+        self.assertEqual(page_obj.paginator.count, 27)
+        self.assertEqual(len(page_obj), 15)
+        self.assertTrue(page_obj.has_next())
+
+        response_page2 = self.client.get(reverse("proveedor_list"), {"page": 2})
+        page_obj2 = response_page2.context["page_obj"]
+        self.assertEqual(len(page_obj2), 12)
+        self.assertFalse(page_obj2.has_next())
+
+
 class PedidosServicesTest(TestCase):
     def setUp(self):
         User = get_user_model()
@@ -1568,5 +1756,4 @@ class ProductoPrecioUnitarioTest(TestCase):
         content = response.content.decode("utf-8")
         self.assertIn("Precio Unitario", content)
         self.assertIn("$450.00", content)
-
 

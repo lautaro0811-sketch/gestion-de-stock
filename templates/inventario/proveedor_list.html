@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+
+{% block title %}Proveedores{% endblock %}
+{% block topbar_title %}Padrón de Proveedores{% endblock %}
+
+{% block content %}
+<div class="card mb-20">
+    <div class="card-header-flex">
+        <h2 class="card-title">Nuevo Proveedor</h2>
+    </div>
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-grid-row">
+            <div class="form-group">
+                <label class="form-label">Nombre / Razón social *</label>
+                {{ form.nombre }}
+                {% if form.nombre.errors %}
+                    <div class="field-error">{{ form.nombre.errors.0 }}</div>
+                {% endif %}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Tipo de documento *</label>
+                {{ form.tipo_documento }}
+                {% if form.tipo_documento.errors %}
+                    <div class="field-error">{{ form.tipo_documento.errors.0 }}</div>
+                {% endif %}
+            </div>
+            <div class="form-group">
+                <label class="form-label">CUIT / DNI *</label>
+                {{ form.numero_documento }}
+                {% if form.numero_documento.errors %}
+                    <div class="field-error">{{ form.numero_documento.errors.0 }}</div>
+                {% endif %}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Domicilio</label>
+                {{ form.domicilio }}
+                {% if form.domicilio.errors %}
+                    <div class="field-error">{{ form.domicilio.errors.0 }}</div>
+                {% endif %}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Correo Electrónico</label>
+                {{ form.correo }}
+                {% if form.correo.errors %}
+                    <div class="field-error">{{ form.correo.errors.0 }}</div>
+                {% endif %}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Teléfono</label>
+                {{ form.telefono }}
+                {% if form.telefono.errors %}
+                    <div class="field-error">{{ form.telefono.errors.0 }}</div>
+                {% endif %}
+            </div>
+        </div>
+        <button type="submit" class="btn btn-success">+ Registrar Proveedor</button>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-header-flex">
+        <h2 class="card-title">Listado de Proveedores Activos</h2>
+    </div>
+
+    <form method="get" class="filter-form">
+        <div class="filter-input-main">
+            <label class="form-label">Buscar</label>
+            <input type="text" name="q" value="{{ query }}" placeholder="CUIT / DNI, nombre o N° de proveedor (ID)..." class="form-control">
+        </div>
+        <div>
+            <button type="submit" class="btn btn-primary">Buscar</button>
+            {% if query %}
+                <a href="{% url 'proveedor_list' %}" class="btn btn-secondary">Limpiar</a>
+            {% endif %}
+        </div>
+    </form>
+
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>N° Proveedor (ID)</th>
+                    <th>Nombre / Razón social</th>
+                    <th>Documento</th>
+                    <th>Domicilio</th>
+                    <th>Correo</th>
+                    <th>Teléfono</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in proveedores %}
+                <tr class="row-normal">
+                    <td><strong>#{{ p.id }}</strong></td>
+                    <td><strong>{{ p.nombre }}</strong></td>
+                    <td>{{ p.tipo_documento }} {{ p.numero_documento }}</td>
+                    <td>{{ p.domicilio|default:"-" }}</td>
+                    <td>{{ p.correo|default:"-" }}</td>
+                    <td>{{ p.telefono|default:"-" }}</td>
+                    <td class="text-nowrap">
+                        <a href="{% url 'proveedor_desactivar' p.id %}" class="btn btn-secondary btn-sm" title="Dar de baja proveedor">Desactivar</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="empty-row">No se encontraron proveedores registrados.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% include 'inventario/includes/pagination.html' %}
+</div>
+{% endblock %}

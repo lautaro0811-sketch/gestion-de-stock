@@ -1,10 +1,18 @@
 from django.contrib import admin
 
-from .models import Categoria, Cliente, Movimiento, Pedido, PedidoItem, Producto
+from .models import Categoria, Cliente, Movimiento, Pedido, PedidoItem, Producto, Proveedor
 
 
 @admin.register(Cliente)
 class ClienteAdmin(admin.ModelAdmin):
+    list_display = ("id", "nombre", "tipo_documento", "numero_documento", "domicilio", "correo", "telefono", "activo", "fecha_creacion")
+    list_filter = ("activo", "tipo_documento")
+    search_fields = ("nombre", "numero_documento", "correo", "domicilio")
+    readonly_fields = ("fecha_creacion",)
+
+
+@admin.register(Proveedor)
+class ProveedorAdmin(admin.ModelAdmin):
     list_display = ("id", "nombre", "tipo_documento", "numero_documento", "domicilio", "correo", "telefono", "activo", "fecha_creacion")
     list_filter = ("activo", "tipo_documento")
     search_fields = ("nombre", "numero_documento", "correo", "domicilio")
