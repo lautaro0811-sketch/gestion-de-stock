@@ -1,6 +1,7 @@
 import datetime
 import sqlite3
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.contrib import admin
 from django.contrib.auth import get_user_model
@@ -1474,6 +1475,7 @@ class OrdenesCompraServicesTest(TestCase):
         self.assertEqual(orden.estado, OrdenCompra.EstadoOrdenCompra.PENDIENTE)
         self.assertEqual(self.producto.stock_actual, 10)
         self.assertFalse(Movimiento.objects.filter(orden_compra=orden).exists())
+        self.assertFalse(MovimientoCaja.objects.filter(orden_compra=orden).exists())
 
     def test_recibir_mercaderia_incrementa_stock_y_cambia_estado(self):
         orden = self.crear_orden()
@@ -1486,6 +1488,13 @@ class OrdenesCompraServicesTest(TestCase):
         movimiento = Movimiento.objects.get(orden_compra=orden)
         self.assertEqual(movimiento.tipo, Movimiento.TipoMovimiento.ENTRADA)
         self.assertEqual(movimiento.cantidad, 4)
+        egreso = MovimientoCaja.objects.get(orden_compra=orden)
+        self.assertEqual(egreso.tipo, MovimientoCaja.TipoMovimientoCaja.EGRESO)
+        self.assertEqual(egreso.monto, Decimal("74.00"))
+        self.assertEqual(
+            egreso.concepto,
+            f"Compra - Orden de Compra #{orden.numero_operacion}",
+        )
 
     def test_recibir_orden_ya_recibida_es_rechazado(self):
         orden = self.crear_orden()
@@ -1507,6 +1516,83 @@ class OrdenesCompraServicesTest(TestCase):
         self.assertEqual(cancelada.estado, OrdenCompra.EstadoOrdenCompra.CANCELADA)
         self.assertEqual(self.producto.stock_actual, 10)
         self.assertFalse(Movimiento.objects.filter(orden_compra=orden).exists())
+        self.assertFalse(MovimientoCaja.objects.filter(orden_compra=orden).exists())
+
+    def test_recibir_orden_de_total_cero_no_genera_egreso_y_muestra_etiqueta(self):
+        orden = crear_orden_compra(
+            proveedor_id=self.proveedor.id,
+            items_data=[
+                {
+                    "producto_id": self.producto.id,
+                    "cantidad": 4,
+                    "precio_unitario_compra": Decimal("0.00"),
+                }
+            ],
+        )
+
+        response = self.client.get(
+            reverse("orden_compra_detalle", kwargs={"pk": orden.id})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'class="badge badge-warning"')
+        self.assertContains(response, "Sin costo")
+
+        recibida = recibir_mercaderia(orden_compra_id=orden.id)
+
+        self.producto.refresh_from_db()
+        self.assertEqual(recibida.estado, OrdenCompra.EstadoOrdenCompra.RECIBIDA)
+        self.assertEqual(self.producto.stock_actual, 14)
+        self.assertFalse(MovimientoCaja.objects.filter(orden_compra=orden).exists())
+
+    def test_recibir_mercaderia_falla_restaura_stock_movimientos_y_estado(self):
+        segundo_producto = Producto.objects.create(
+            nombre="Tuercas",
+            categoria=self.cat,
+            precio_unitario=Decimal("10.00"),
+            stock_actual=7,
+            stock_minimo=1,
+        )
+        orden = crear_orden_compra(
+            proveedor_id=self.proveedor.id,
+            items_data=[
+                {
+                    "producto_id": self.producto.id,
+                    "cantidad": 4,
+                    "precio_unitario_compra": Decimal("18.50"),
+                },
+                {
+                    "producto_id": segundo_producto.id,
+                    "cantidad": 3,
+                    "precio_unitario_compra": Decimal("5.00"),
+                },
+            ],
+        )
+        registrar_entrada_original = registrar_entrada
+        llamadas = 0
+
+        def registrar_entrada_y_fallar_en_segundo_item(*args, **kwargs):
+            nonlocal llamadas
+            llamadas += 1
+            if llamadas == 2:
+                raise Producto.DoesNotExist("Producto inválido durante la recepción.")
+            return registrar_entrada_original(*args, **kwargs)
+
+        with patch(
+            "inventario.services.registrar_entrada",
+            side_effect=registrar_entrada_y_fallar_en_segundo_item,
+        ):
+            with self.assertRaises(Producto.DoesNotExist):
+                recibir_mercaderia(orden_compra_id=orden.id)
+
+        self.producto.refresh_from_db()
+        segundo_producto.refresh_from_db()
+        orden.refresh_from_db()
+        self.assertEqual(self.producto.stock_actual, 10)
+        self.assertEqual(segundo_producto.stock_actual, 7)
+        self.assertEqual(orden.estado, OrdenCompra.EstadoOrdenCompra.PENDIENTE)
+        self.assertFalse(Movimiento.objects.filter(orden_compra=orden).exists())
+        self.assertFalse(MovimientoCaja.objects.filter(orden_compra=orden).exists())
 
     def test_cancelar_orden_cancelada_o_recibida_es_rechazado(self):
         cancelada = self.crear_orden()
@@ -1812,6 +1898,38 @@ class CajaFeatureTest(TestCase):
         )
         self.assertEqual(egreso.monto, ingreso.monto)
         self.assertEqual(MovimientoCaja.objects.filter(pedido=pedido).count(), 2)
+
+    def test_dashboard_saldo_combina_ventas_y_compras_recibidas(self):
+        proveedor = Proveedor.objects.create(
+            nombre="Proveedor Caja",
+            tipo_documento="CUIT",
+            numero_documento="30765432108",
+        )
+        orden = crear_orden_compra(
+            proveedor_id=proveedor.id,
+            items_data=[
+                {
+                    "producto_id": self.producto.id,
+                    "cantidad": 3,
+                    "precio_unitario_compra": Decimal("4.10"),
+                }
+            ],
+        )
+        pedido = crear_pedido(
+            cliente_id=self.cliente.id,
+            items_data=[{"producto_id": self.producto.id, "cantidad": 2}],
+        )
+
+        recibir_mercaderia(orden_compra_id=orden.id)
+
+        response = self.client.get(reverse("caja_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["total_ingresos"], Decimal("24.70"))
+        self.assertEqual(response.context["total_egresos"], Decimal("12.30"))
+        self.assertEqual(response.context["saldo"], Decimal("12.40"))
+        self.assertTrue(MovimientoCaja.objects.filter(pedido=pedido).exists())
+        self.assertTrue(MovimientoCaja.objects.filter(orden_compra=orden).exists())
 
     def test_dashboard_calcula_saldo_decimal_y_admite_movimientos_sin_pedido(self):
         MovimientoCaja.objects.create(
