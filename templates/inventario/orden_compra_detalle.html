@@ -40,7 +40,7 @@
             <tr>
                 <th>Producto</th>
                 <th class="text-center">Cantidad</th>
-                <th class="text-center">Precio Unit. de Compra</th>
+                <th class="text-center">Precio unitario de compra</th>
                 <th class="text-center">Subtotal</th>
             </tr>
         </thead>
@@ -67,6 +67,7 @@
 
 <div class="form-actions">
     <a href="{% url 'orden_compra_list' %}" class="btn btn-secondary">Volver al listado</a>
+    <a href="{% url 'orden_compra_pdf' orden.id %}" class="btn btn-secondary">Descargar PDF</a>
     {% if orden.estado == 'PENDIENTE' %}
         <form method="post" action="{% url 'orden_compra_recibir' orden.id %}">
             {% csrf_token %}

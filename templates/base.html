@@ -36,8 +36,11 @@
                 <a href="{% url 'proveedor_list' %}" class="sidebar-link {% if request.resolver_match.url_name == 'proveedor_list' or request.resolver_match.url_name == 'proveedor_desactivar' %}active{% endif %}">
                     🏭 Proveedores
                 </a>
-                <a href="{% url 'pedido_list' %}" class="sidebar-link {% if 'pedido' in request.resolver_match.url_name %}active{% endif %}">
-                    🛒 Pedidos de Venta
+                <a href="{% url 'pedido_crear' %}" class="sidebar-link {% if request.resolver_match.url_name == 'pedido_crear' %}active{% endif %}">
+                    🛒 Nueva Venta
+                </a>
+                <a href="{% url 'pedido_list' %}" class="sidebar-link {% if request.resolver_match.url_name == 'pedido_list' or request.resolver_match.url_name == 'pedido_detalle' or request.resolver_match.url_name == 'pedido_cancelar' %}active{% endif %}">
+                    📋 Ventas
                 </a>
                 <a href="{% url 'orden_compra_list' %}" class="sidebar-link {% if 'orden_compra' in request.resolver_match.url_name %}active{% endif %}">
                     📥 Órdenes de Compra

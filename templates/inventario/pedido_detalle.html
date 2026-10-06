@@ -1,11 +1,11 @@
 {% extends 'base.html' %}
 
-{% block title %}Detalle de Pedido {{ pedido.numero_operacion }}{% endblock %}
+{% block title %}Detalle de Venta {{ pedido.numero_operacion }}{% endblock %}
 
 {% block content %}
 <div class="card mb-16">
     <div class="form-actions mb-16">
-        <h2>Pedido {{ pedido.numero_operacion }}</h2>
+        <h2>Venta {{ pedido.numero_operacion }}</h2>
         <span class="badge {% if pedido.estado == 'CONFIRMADO' %}badge-success{% else %}badge-danger{% endif %}">
             {{ pedido.estado }}
         </span>
@@ -27,13 +27,13 @@
 </div>
 
 <div class="card mb-16">
-    <h3 class="mb-16">Ítems del Pedido</h3>
+    <h3 class="mb-16">Productos de la Venta</h3>
     <table class="w-full">
         <thead>
             <tr>
                 <th>Producto</th>
                 <th class="text-center">Cantidad</th>
-                <th class="text-center">Precio Unit.</th>
+                <th class="text-center">Precio unitario de venta</th>
                 <th class="text-center">Subtotal</th>
             </tr>
         </thead>
@@ -47,7 +47,7 @@
             </tr>
             {% empty %}
             <tr>
-                <td colspan="4" class="text-center text-muted p-20">No hay ítems en este pedido.</td>
+                <td colspan="4" class="text-center text-muted p-20">No hay productos en esta venta.</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -59,11 +59,11 @@
 </div>
 
 <div class="form-actions">
-    <a href="{% url 'pedido_list' %}" class="btn btn-secondary">Volver al listado</a>
+    <a href="{% url 'pedido_list' %}" class="btn btn-secondary">Volver a Ventas</a>
     <a href="{% url 'pedido_pdf' pedido.id %}" class="btn btn-primary">Generar Remito</a>
     
     {% if pedido.estado == 'CONFIRMADO' %}
-        <a href="{% url 'pedido_cancelar' pedido.id %}" class="btn btn-danger">Cancelar Pedido</a>
+        <a href="{% url 'pedido_cancelar' pedido.id %}" class="btn btn-danger">Cancelar Venta</a>
     {% endif %}
 </div>
 {% endblock %}

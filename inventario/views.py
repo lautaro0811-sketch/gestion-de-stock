@@ -577,6 +577,31 @@ def pedido_pdf_view(request, pk):
     return response
 
 
+def orden_compra_pdf_view(request, pk):
+    orden = get_object_or_404(
+        OrdenCompra.objects.select_related("proveedor").prefetch_related(
+            "items__producto"
+        ),
+        pk=pk,
+    )
+    html = render_to_string("inventario/pdf/orden_compra.html", {"orden": orden})
+    pdf_buffer = BytesIO()
+    result = pisa.CreatePDF(
+        html,
+        dest=pdf_buffer,
+        encoding="UTF-8",
+        link_callback=_pdf_static_link_callback,
+    )
+    if result.err:
+        return HttpResponse("No se pudo generar la orden de compra.", status=500)
+
+    response = HttpResponse(pdf_buffer.getvalue(), content_type="application/pdf")
+    response["Content-Disposition"] = (
+        f'attachment; filename="{orden.numero_operacion}.pdf"'
+    )
+    return response
+
+
 def descargar_backup(request):
     if connection.vendor != "sqlite":
         return HttpResponse("La descarga de backup solo está disponible para SQLite.", status=501)
@@ -779,7 +804,7 @@ def export_csv(request):
     response = HttpResponse(content_type="text/csv")
     response["Content-Disposition"] = "attachment; filename=productos.csv"
     writer = csv.writer(response)
-    writer.writerow(["ID", "Nombre", "Descripción", "Categoría", "Precio Unitario", "Stock Mínimo", "Stock Actual", "Estado"])
+    writer.writerow(["ID", "Nombre", "Descripción", "Categoría", "Precio Unitario de Venta", "Stock Mínimo", "Stock Actual", "Estado"])
     for p in productos_qs:
         estado = "Sin Stock" if p.stock_actual == 0 else ("Stock Bajo" if p.stock_bajo else "Normal")
         writer.writerow([
