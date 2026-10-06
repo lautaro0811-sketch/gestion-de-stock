@@ -169,6 +169,7 @@ def registrar_egreso_caja(
     monto,
     concepto: str,
     pedido=None,
+    orden_compra=None,
 ) -> MovimientoCaja:
     """Registra un egreso de dinero de la caja."""
     monto = Decimal(str(monto))
@@ -180,6 +181,7 @@ def registrar_egreso_caja(
         monto=monto,
         concepto=concepto,
         pedido=pedido,
+        orden_compra=orden_compra,
     )
 
 
@@ -387,7 +389,8 @@ def recibir_mercaderia(
     if orden.estado != OrdenCompra.EstadoOrdenCompra.PENDIENTE:
         raise ValidationError("Solo se puede recibir una orden de compra pendiente.")
 
-    for item in orden.items.select_related("producto").all():
+    items = list(orden.items.select_related("producto").all())
+    for item in items:
         registrar_entrada(
             producto_id=item.producto_id,
             cantidad=item.cantidad,
@@ -395,6 +398,17 @@ def recibir_mercaderia(
             fecha=fecha or timezone.now(),
             usuario=usuario,
             orden_compra_id=orden.id,
+        )
+
+    total_orden = sum(
+        (item.cantidad * item.precio_unitario_compra for item in items),
+        Decimal("0.00"),
+    )
+    if total_orden > 0:
+        registrar_egreso_caja(
+            monto=total_orden,
+            concepto=f"Compra - Orden de Compra #{orden.numero_operacion}",
+            orden_compra=orden,
         )
 
     orden.estado = OrdenCompra.EstadoOrdenCompra.RECIBIDA
