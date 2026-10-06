@@ -779,7 +779,7 @@ def export_csv(request):
     response = HttpResponse(content_type="text/csv")
     response["Content-Disposition"] = "attachment; filename=productos.csv"
     writer = csv.writer(response)
-    writer.writerow(["ID", "Nombre", "Descripción", "Categoría", "Precio Unitario", "Stock Mínimo", "Stock Actual", "Estado"])
+    writer.writerow(["ID", "Nombre", "Descripción", "Categoría", "Precio Unitario de Venta", "Stock Mínimo", "Stock Actual", "Estado"])
     for p in productos_qs:
         estado = "Sin Stock" if p.stock_actual == 0 else ("Stock Bajo" if p.stock_bajo else "Normal")
         writer.writerow([

@@ -1,14 +1,14 @@
 {% extends 'base.html' %}
 
-{% block title %}Pedidos de Venta{% endblock %}
-{% block topbar_title %}Gestión de Pedidos y Ventas{% endblock %}
+{% block title %}Ventas{% endblock %}
+{% block topbar_title %}Ventas{% endblock %}
 
 {% block content %}
 <div class="card">
     <div class="card-header-flex">
-        <h2 class="card-title">Listado de Pedidos</h2>
+        <h2 class="card-title">Historial de Ventas</h2>
         <div class="action-bar">
-            <a href="{% url 'pedido_crear' %}" class="btn btn-success">+ Nuevo Pedido de Venta</a>
+            <a href="{% url 'pedido_crear' %}" class="btn btn-success">+ Nueva Venta</a>
         </div>
     </div>
 
@@ -86,7 +86,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="7" class="empty-row">No se encontraron pedidos de venta registrados.</td>
+                    <td colspan="7" class="empty-row">No se encontraron ventas registradas.</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -97,4 +97,3 @@
     {% include 'inventario/includes/pagination.html' %}
 </div>
 {% endblock %}
-

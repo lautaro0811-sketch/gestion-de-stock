@@ -23,7 +23,7 @@ class ProductoBaseForm(forms.ModelForm):
         model = Producto
         fields = ["nombre", "categoria", "precio_unitario", "stock_minimo", "descripcion"]
         labels = {
-            "precio_unitario": "Precio Unitario ($)",
+            "precio_unitario": "Precio unitario de venta ($)",
         }
         widgets = {
             "nombre": forms.TextInput(attrs={"class": "form-control", "placeholder": "Nombre del producto"}),
@@ -258,7 +258,7 @@ class PedidoForm(forms.ModelForm):
         fields = ["cliente", "fecha", "observacion"]
         labels = {
             "cliente": "Cliente",
-            "fecha": "Fecha de pedido",
+            "fecha": "Fecha de venta",
             "observacion": "Observaciones",
         }
         widgets = {

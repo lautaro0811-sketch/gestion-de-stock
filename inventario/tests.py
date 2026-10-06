@@ -1919,5 +1919,5 @@ class ProductoPrecioUnitarioTest(TestCase):
         response = self.client.get(reverse("export_csv"))
         self.assertEqual(response.status_code, 200)
         content = response.content.decode("utf-8")
-        self.assertIn("Precio Unitario", content)
+        self.assertIn("Precio Unitario de Venta", content)
         self.assertIn("$450.00", content)

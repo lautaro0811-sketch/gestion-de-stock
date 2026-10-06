@@ -64,7 +64,7 @@
                             <a href="?{% param_replace orden='categoria' dir='asc' %}" class="sortable{% if orden == 'categoria' %} active-sort{% endif %}">Categoría {% if orden == 'categoria' %}↓{% endif %}</a>
                         {% endif %}
                     </th>
-                    <th>Precio</th>
+                    <th>Precio de venta</th>
                     <th>
                         {% if orden == 'stock_minimo' and dir == 'asc' %}
                             <a href="?{% param_replace orden='stock_minimo' dir='desc' %}" class="sortable active-sort">Stock Mín. ↑</a>
