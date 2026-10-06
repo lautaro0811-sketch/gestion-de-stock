@@ -577,6 +577,31 @@ def pedido_pdf_view(request, pk):
     return response
 
 
+def orden_compra_pdf_view(request, pk):
+    orden = get_object_or_404(
+        OrdenCompra.objects.select_related("proveedor").prefetch_related(
+            "items__producto"
+        ),
+        pk=pk,
+    )
+    html = render_to_string("inventario/pdf/orden_compra.html", {"orden": orden})
+    pdf_buffer = BytesIO()
+    result = pisa.CreatePDF(
+        html,
+        dest=pdf_buffer,
+        encoding="UTF-8",
+        link_callback=_pdf_static_link_callback,
+    )
+    if result.err:
+        return HttpResponse("No se pudo generar la orden de compra.", status=500)
+
+    response = HttpResponse(pdf_buffer.getvalue(), content_type="application/pdf")
+    response["Content-Disposition"] = (
+        f'attachment; filename="{orden.numero_operacion}.pdf"'
+    )
+    return response
+
+
 def descargar_backup(request):
     if connection.vendor != "sqlite":
         return HttpResponse("La descarga de backup solo está disponible para SQLite.", status=501)

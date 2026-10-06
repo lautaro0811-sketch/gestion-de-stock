@@ -21,6 +21,7 @@ urlpatterns = [
     path("ordenes-compra/", views.orden_compra_list, name="orden_compra_list"),
     path("ordenes-compra/nueva/", views.orden_compra_crear, name="orden_compra_crear"),
     path("ordenes-compra/<int:pk>/", views.orden_compra_detalle, name="orden_compra_detalle"),
+    path("ordenes-compra/<int:pk>/pdf/", views.orden_compra_pdf_view, name="orden_compra_pdf"),
     path("ordenes-compra/<int:pk>/recibir/", views.orden_compra_recibir, name="orden_compra_recibir"),
     path("ordenes-compra/<int:pk>/cancelar/", views.orden_compra_cancelar, name="orden_compra_cancelar"),
     path("movimientos/", views.movimiento_historial, name="movimiento_historial"),

@@ -1548,6 +1548,21 @@ class OrdenesCompraServicesTest(TestCase):
             reverse("orden_compra_detalle", kwargs={"pk": orden.id}),
         )
 
+    def test_orden_compra_pdf_view_retorna_pdf_descargable(self):
+        orden = self.crear_orden()
+
+        response = self.client.get(
+            reverse("orden_compra_pdf", kwargs={"pk": orden.pk})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertTrue(response.content.startswith(b"%PDF"))
+        self.assertIn(
+            f'attachment; filename="{orden.numero_operacion}.pdf"',
+            response["Content-Disposition"],
+        )
+
 
 class ProductoCrearAjaxViewTest(TestCase):
     def setUp(self):
