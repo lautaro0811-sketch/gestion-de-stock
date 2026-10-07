@@ -61,7 +61,12 @@
     </table>
 
     <div class="form-actions justify-end">
-        <h3>Total: ${{ orden.total|floatformat:2 }}</h3>
+        <h3>
+            Total: ${{ orden.total|floatformat:2 }}
+            {% if orden.total == 0 %}
+                <span class="badge badge-warning">Sin costo</span>
+            {% endif %}
+        </h3>
     </div>
 </div>
 

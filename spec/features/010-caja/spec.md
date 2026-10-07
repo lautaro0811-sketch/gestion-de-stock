@@ -25,5 +25,6 @@ _Condiciones verificables que deben cumplirse para dar la feature por terminada.
 ## Fuera de alcance
 
 - Registro de compras formales a proveedores y manejo de cuentas corrientes (será una feature futura, aunque este módulo la deja preparada).
+- Nota de extensión: el vínculo opcional de `MovimientoCaja` con `OrdenCompra` y el egreso automático al recibir mercadería se incorporaron en `014-caja-egresos-proveedores`.
 - Manejo de múltiples cajas o sucursales (habrá una única caja general).
 - Múltiples medios de pago (tarjeta, transferencia); por ahora, el saldo se maneja como una caja unificada de efectivo.

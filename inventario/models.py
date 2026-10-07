@@ -481,6 +481,14 @@ class MovimientoCaja(models.Model):
         related_name="movimientos_caja",
         verbose_name="Pedido",
     )
+    orden_compra = models.ForeignKey(
+        OrdenCompra,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="movimientos_caja",
+        verbose_name="Orden de compra",
+    )
 
     class Meta:
         verbose_name = "Movimiento de Caja"
