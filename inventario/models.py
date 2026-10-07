@@ -150,7 +150,8 @@ class Movimiento(models.Model):
         ordering = ["-fecha"]
 
     def __str__(self):
-        return f"{self.tipo} - {self.producto.nombre} ({self.cantidad}) el {self.fecha.strftime('%d/%m/%Y %H:%M')}"
+        fecha_local = timezone.localtime(self.fecha)
+        return f"{self.tipo} - {self.producto.nombre} ({self.cantidad}) el {fecha_local.strftime('%d/%m/%Y %H:%M')}"
 
     def save(self, *args, **kwargs):
         if self.pk is not None and not self._state.adding:
@@ -499,4 +500,5 @@ class MovimientoCaja(models.Model):
 
     def __str__(self):
         signo = "+" if self.tipo == self.TipoMovimientoCaja.INGRESO else "-"
-        return f"{signo}${self.monto} - {self.concepto} ({self.fecha.strftime('%d/%m/%Y %H:%M')})"
+        fecha_local = timezone.localtime(self.fecha)
+        return f"{signo}${self.monto} - {self.concepto} ({fecha_local.strftime('%d/%m/%Y %H:%M')})"

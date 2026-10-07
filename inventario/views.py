@@ -332,7 +332,7 @@ def movimiento_crear(request):
             cantidad = form.cleaned_data["cantidad"]
             observacion = form.cleaned_data["observacion"]
 
-            hora_actual = timezone.now().time()
+            hora_actual = timezone.localtime().time()
             fecha_completa = timezone.make_aware(
                 datetime.combine(fecha_date, hora_actual)
             )
@@ -471,7 +471,7 @@ def pedido_crear(request):
             fecha_date = form.cleaned_data["fecha"]
             observacion = form.cleaned_data.get("observacion", "")
 
-            hora_actual = timezone.now().time()
+            hora_actual = timezone.localtime().time()
             fecha_completa = timezone.make_aware(
                 datetime.combine(fecha_date, hora_actual)
             )
@@ -699,7 +699,7 @@ def orden_compra_crear(request):
         if form.is_valid() and formset.is_valid():
             proveedor = form.cleaned_data["proveedor"]
             fecha_orden = timezone.make_aware(
-                datetime.combine(form.cleaned_data["fecha"], timezone.now().time())
+                datetime.combine(form.cleaned_data["fecha"], timezone.localtime().time())
             )
             items_data = []
             for item_form in formset:

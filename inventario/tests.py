@@ -22,6 +22,7 @@ from inventario.forms import (
     EgresoCajaForm,
     ItemPedidoFormSet,
     MovimientoUnificadoForm,
+    OrdenCompraForm,
     PedidoForm,
     PedidoItemFormSet,
     ProductoCrearForm,
@@ -49,6 +50,26 @@ from inventario.services import (
     registrar_salida,
     recibir_mercaderia,
 )
+
+
+class ArgentinaTimezoneFormsTest(TestCase):
+    def test_operation_forms_use_argentina_local_date_as_initial(self):
+        fixed_now = datetime.datetime(
+            2026, 10, 7, 2, 15, tzinfo=datetime.timezone.utc
+        )
+        expected_date = datetime.date(2026, 10, 6)
+
+        with patch("django.utils.timezone.now", return_value=fixed_now):
+            forms = (
+                MovimientoUnificadoForm(),
+                PedidoForm(),
+                OrdenCompraForm(),
+            )
+            form_dates = tuple(form["fecha"].value() for form in forms)
+
+        for form, form_date in zip(forms, form_dates):
+            with self.subTest(form=form.__class__.__name__):
+                self.assertEqual(form_date, expected_date)
 
 
 class StockBajoFExpressionTest(TestCase):
@@ -352,6 +373,31 @@ class MovimientoViewsAuditoriaTest(TestCase):
         self.assertEqual(movimiento.created_by, self.user)
         self.assertEqual(movimiento.stock_anterior, 5)
         self.assertEqual(movimiento.stock_posterior, 17)
+
+    def test_movimiento_crear_usa_hora_local_de_argentina(self):
+        fixed_now = datetime.datetime(
+            2026, 10, 7, 2, 15, tzinfo=datetime.timezone.utc
+        )
+
+        with patch("django.utils.timezone.now", return_value=fixed_now):
+            response = self.client.post(
+                reverse("movimiento_crear"),
+                {
+                    "producto": self.producto.id,
+                    "tipo": "ENTRADA",
+                    "cantidad": 1,
+                    "fecha": "2026-10-06",
+                    "observacion": "Prueba horaria",
+                },
+            )
+
+        self.assertEqual(response.status_code, 302)
+        movimiento = Movimiento.objects.get(observacion="Prueba horaria")
+        self.assertEqual(
+            timezone.localtime(movimiento.fecha).strftime("%d/%m/%Y %H:%M"),
+            "06/10/2026 23:15",
+        )
+        self.assertIn("06/10/2026 23:15", str(movimiento))
 
     def test_producto_crear_stock_inicial_asocia_usuario_autenticado(self):
         self.client.login(username="operador", password="operadorpass123")
@@ -1491,6 +1537,45 @@ class OrdenesCompraServicesTest(TestCase):
             ],
         )
 
+    def test_orden_creada_y_mostrada_con_hora_local_de_argentina(self):
+        fixed_now = datetime.datetime(
+            2026, 10, 7, 2, 15, tzinfo=datetime.timezone.utc
+        )
+
+        with patch("django.utils.timezone.now", return_value=fixed_now):
+            response = self.client.post(
+                reverse("orden_compra_crear"),
+                {
+                    "proveedor": self.proveedor.id,
+                    "fecha": "2026-10-06",
+                    "observacion": "",
+                    "items-TOTAL_FORMS": "1",
+                    "items-INITIAL_FORMS": "0",
+                    "items-MIN_NUM_FORMS": "0",
+                    "items-MAX_NUM_FORMS": "1000",
+                    "items-0-producto": self.producto.id,
+                    "items-0-cantidad": "2",
+                    "items-0-precio_unitario_compra": "18.50",
+                },
+            )
+
+        self.assertEqual(response.status_code, 302)
+        orden = OrdenCompra.objects.latest("id")
+        self.assertEqual(
+            timezone.localtime(orden.fecha).strftime("%d/%m/%Y %H:%M"),
+            "06/10/2026 23:15",
+        )
+        self.assertContains(
+            self.client.get(reverse("orden_compra_list")),
+            "06/10/2026 23:15",
+        )
+        self.assertContains(
+            self.client.get(
+                reverse("orden_compra_detalle", kwargs={"pk": orden.pk})
+            ),
+            "06/10/2026 23:15",
+        )
+
     def test_crear_orden_no_modifica_stock(self):
         orden = self.crear_orden()
 
@@ -1878,6 +1963,57 @@ class PedidosViewsAndFormsTest(TestCase):
 
         self.producto.refresh_from_db()
         self.assertEqual(self.producto.stock_actual, 12)
+
+    def test_pedido_guarda_y_muestra_hora_local_de_argentina(self):
+        self.client.force_login(self.user)
+        fixed_now = datetime.datetime(
+            2026, 10, 7, 2, 15, tzinfo=datetime.timezone.utc
+        )
+
+        with patch("django.utils.timezone.now", return_value=fixed_now):
+            response = self.client.post(
+                reverse("pedido_crear"),
+                {
+                    "cliente": self.cliente.id,
+                    "nombre_comprador": "",
+                    "fecha": "2026-10-06",
+                    "observacion": "",
+                    "items-TOTAL_FORMS": "1",
+                    "items-INITIAL_FORMS": "0",
+                    "items-MIN_NUM_FORMS": "0",
+                    "items-MAX_NUM_FORMS": "1000",
+                    "items-0-producto": self.producto.id,
+                    "items-0-cantidad": "1",
+                },
+            )
+
+        self.assertEqual(response.status_code, 302)
+        pedido = Pedido.objects.latest("id")
+        self.assertEqual(
+            timezone.localtime(pedido.fecha).strftime("%d/%m/%Y %H:%M"),
+            "06/10/2026 23:15",
+        )
+        self.assertEqual(
+            timezone.localtime(Movimiento.objects.get(pedido=pedido).fecha).strftime(
+                "%d/%m/%Y %H:%M"
+            ),
+            "06/10/2026 23:15",
+        )
+        ingreso_caja = MovimientoCaja.objects.get(pedido=pedido)
+        hora_local_caja = timezone.localtime(ingreso_caja.fecha).strftime(
+            "%d/%m/%Y %H:%M"
+        )
+        self.assertIn(hora_local_caja, str(ingreso_caja))
+        self.assertContains(
+            self.client.get(reverse("pedido_list")),
+            "06/10/2026 23:15",
+        )
+        self.assertContains(
+            self.client.get(reverse("pedido_detalle", kwargs={"pk": pedido.pk})),
+            "06/10/2026 23:15",
+        )
+        remito = render_to_string("inventario/pdf/remito.html", {"pedido": pedido})
+        self.assertIn("06/10/2026 23:15", remito)
 
     def test_pedido_crear_view_stock_insuficiente_muestra_error(self):
         self.client.login(username="operador_ventas", password="password123")
