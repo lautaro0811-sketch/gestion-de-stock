@@ -7,7 +7,7 @@
 Añade a la vista de Inventario tres mejoras de usabilidad y exportación:
 
 1. **Exportar CSV** del listado de productos, respetando cualquier filtro activo (búsqueda libre, filtro por categoría y opción “solo alertas”).
-2. **Botones de acceso rápido** “+Entrada” y “‑Salida” en cada fila de la tabla que redirigen a la vista existente `movimiento_crear` con los parámetros `producto` (id) y `tipo` (`ENTRADA` o `SALIDA`) pre‑seleccionados. No se introduce lógica de negocio nueva; solo la generación de la URL.
+2. **Botones de acceso rápido** en cada fila de la tabla. “+Entrada manual” redirige a `movimiento_crear` con `producto` y `tipo=ENTRADA`; “‑Salida” inicia una venta en `pedido_crear` con el producto precargado.
 3. **Ordenamiento de columnas** mediante query‑params `?orden=campo&dir=asc|desc`. Sólo se permiten los campos:
    - `nombre`
    - `categoria`
@@ -18,15 +18,11 @@ Añade a la vista de Inventario tres mejoras de usabilidad y exportación:
 ## Criterios de aceptación
 
 - Se genera un archivo CSV válido (UTF‑8, separador coma) cuyo contenido refleja exactamente los productos mostrados en la tabla tras aplicar los filtros.
-- Los botones **+Entrada** y **‑Salida** llevan a `movimiento_crear` con URL del tipo:
+- El botón **+Entrada manual** lleva a `movimiento_crear` con URL del tipo:
   ```
   /movimiento_crear?producto=<ID_DEL_PRODUCTO>&tipo=ENTRADA
   ```
-  y
-  ```
-  /movimiento_crear?producto=<ID_DEL_PRODUCTO>&tipo=SALIDA
-  ```
-  respectivamente.
+- El botón **‑Salida** lleva a `pedido_crear?producto=<ID_DEL_PRODUCTO>` y presenta el producto como primer ítem de la venta, sin registrar una salida manual.
 - Cambiar los parámetros `orden` y `dir` en la URL **recarga la página** (no hay recarga “ajax”, la petición completa vuelve a renderizarse) y muestra la flecha de dirección correcta; sólo los campos listados en la whitelist son aceptados.
 - Si se envía un valor de `orden` que no esté en la whitelist, la vista ignora el parámetro y mantiene el orden por defecto, sin lanzar excepción.
 - Los estilos de los nuevos botones y de la flecha de ordenamiento utilizan clases definidas en `static/css/style.css`; no aparecen atributos `style="..."` en los templates.
@@ -37,3 +33,7 @@ Añade a la vista de Inventario tres mejoras de usabilidad y exportación:
 - No se añaden frameworks CSS o JS externos (Bootstrap, Tailwind, etc.). Todo el estilo se mantiene en `static/css/style.css`.
 - No se implementa lógica de negocio para crear movimientos; la vista `movimiento_crear` sigue manejando la creación como antes.
 - La gestión de permisos y autenticación permanece sin cambios.
+
+## Nota de integración (015)
+
+La integración de flujo operativo cambió “‑Salida” para iniciar una venta formal con el producto precargado y aclaró que “+Entrada manual” es para correcciones de stock; las compras siguen registrándose mediante Órdenes de Compra.

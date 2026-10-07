@@ -293,6 +293,8 @@ class Pedido(models.Model):
         on_delete=models.PROTECT,
         related_name="pedidos",
         verbose_name="Cliente",
+        null=True,
+        blank=True,
     )
     cliente_nombre = models.CharField(max_length=150, blank=True, default="", verbose_name="Nombre del cliente al vender")
     cliente_tipo_documento = models.CharField(max_length=10, blank=True, default="", verbose_name="Tipo de documento al vender")
@@ -322,7 +324,7 @@ class Pedido(models.Model):
         ordering = ["-fecha", "-id"]
 
     def __str__(self):
-        return f"Pedido #{self.numero_operacion} - {self.cliente.nombre}"
+        return f"Pedido #{self.numero_operacion} - {self.cliente_nombre or 'Consumidor Final'}"
 
     @property
     def total(self):

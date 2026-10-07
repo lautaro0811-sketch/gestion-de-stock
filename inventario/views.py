@@ -467,6 +467,7 @@ def pedido_crear(request):
         formset = ItemPedidoFormSet(request.POST)
         if form.is_valid() and formset.is_valid():
             cliente = form.cleaned_data["cliente"]
+            nombre_comprador = form.cleaned_data["nombre_comprador"]
             fecha_date = form.cleaned_data["fecha"]
             observacion = form.cleaned_data.get("observacion", "")
 
@@ -494,15 +495,16 @@ def pedido_crear(request):
             else:
                 try:
                     pedido = crear_pedido(
-                        cliente_id=cliente.id,
+                        cliente_id=cliente.id if cliente else None,
                         items_data=items_data,
                         usuario=usuario,
                         fecha=fecha_completa,
                         observacion=observacion,
+                        nombre_comprador=nombre_comprador,
                     )
                     messages.success(
                         request,
-                        f"Pedido #{pedido.numero_operacion} registrado exitosamente para '{cliente.nombre}'."
+                        f"Pedido #{pedido.numero_operacion} registrado exitosamente para '{pedido.cliente_nombre}'."
                     )
                     return redirect("pedido_detalle", pk=pedido.pk)
                 except ValidationError as e:
@@ -511,7 +513,18 @@ def pedido_crear(request):
                     form.add_error(None, err_msg)
     else:
         form = PedidoForm()
-        formset = ItemPedidoFormSet()
+        producto_id = request.GET.get("producto")
+        producto_inicial = None
+        if producto_id:
+            try:
+                producto_inicial = Producto.objects.get(pk=producto_id, activo=True)
+            except (Producto.DoesNotExist, ValueError):
+                messages.warning(
+                    request,
+                    "El producto indicado no está disponible; podés seleccionarlo manualmente.",
+                )
+        formset_initial = [{"producto": producto_inicial}] if producto_inicial else None
+        formset = ItemPedidoFormSet(initial=formset_initial)
 
     productos = list(Producto.objects.filter(activo=True).order_by("nombre"))
     productos_json = [

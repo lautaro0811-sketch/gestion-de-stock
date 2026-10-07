@@ -61,9 +61,9 @@
                     </td>
                     <td class="text-nowrap">{{ pedido.fecha|date:"d/m/Y H:i" }}</td>
                     <td>
-                        <strong>{{ pedido.cliente.nombre }}</strong>
-                        {% if pedido.cliente.numero_documento %}
-                            <div class="form-desc">{{ pedido.cliente.tipo_documento }}: {{ pedido.cliente.numero_documento }}</div>
+                        <strong>{{ pedido.cliente_nombre|default:"Consumidor Final" }}</strong>
+                        {% if pedido.cliente_numero_documento %}
+                            <div class="form-desc">{{ pedido.cliente_tipo_documento }}: {{ pedido.cliente_numero_documento }}</div>
                         {% endif %}
                     </td>
                     <td>{{ pedido.items.count }} art.</td>

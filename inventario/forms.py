@@ -253,9 +253,17 @@ class MovimientoUnificadoForm(forms.Form):
 
 
 class PedidoForm(forms.ModelForm):
+    nombre_comprador = forms.CharField(
+        required=False,
+        max_length=150,
+        label="Nombre del comprador",
+        help_text="Opcional; se usa cuando no seleccionás un cliente registrado.",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+
     class Meta:
         model = Pedido
-        fields = ["cliente", "fecha", "observacion"]
+        fields = ["cliente", "nombre_comprador", "fecha", "observacion"]
         labels = {
             "cliente": "Cliente",
             "fecha": "Fecha de venta",
