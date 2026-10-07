@@ -16,6 +16,7 @@ _Features completadas, en orden de implementación._
 8. **010 · Caja y Flujo de Efectivo** — Registro automático de ingresos y egresos por pedidos, egresos manuales y dashboard con saldo e historial.
 9. **011 · Proveedores** — Padrón con validación DNI/CUIT compartida con clientes, búsqueda por documento, nombre e ID, baja lógica y listado paginado.
 10. **012 · Órdenes de Compra** — Registro de compras a proveedores, recepción manual de mercadería con actualización de stock, cancelación de órdenes pendientes y trazabilidad en el historial de movimientos.
+11. **015 · Integración del Flujo Operativo** — Ventas a consumidor final sin cliente registrado, snapshots de comprador seguros y accesos rápidos integrados a Nueva Venta.
 
 > Nota de negocio: la validación del CUIT se mantiene en formato operativo (11 dígitos) y no se incorpora el algoritmo fiscal completo para no complejizar la lógica de datos del sistema actual.
 

@@ -1328,6 +1328,29 @@ class PedidosServicesTest(TestCase):
             self.assertEqual(m.created_by, self.user)
             self.assertEqual(m.pedido, pedido)
 
+    def test_creacion_pedido_sin_cliente_usa_consumidor_final(self):
+        pedido = crear_pedido(
+            cliente_id=None,
+            items_data=[{"producto_id": self.prod1.id, "cantidad": 1}],
+        )
+
+        self.assertIsNone(pedido.cliente)
+        self.assertEqual(pedido.cliente_nombre, "Consumidor Final")
+        self.assertEqual(pedido.cliente_tipo_documento, "")
+        self.assertEqual(pedido.cliente_numero_documento, "")
+        self.assertEqual(pedido.cliente_telefono, "")
+        self.assertEqual(str(pedido), f"Pedido #{pedido.numero_operacion} - Consumidor Final")
+
+    def test_creacion_pedido_sin_cliente_usa_nombre_comprador(self):
+        pedido = crear_pedido(
+            cliente_id=None,
+            nombre_comprador="  Ana López  ",
+            items_data=[{"producto_id": self.prod1.id, "cantidad": 1}],
+        )
+
+        self.assertIsNone(pedido.cliente)
+        self.assertEqual(pedido.cliente_nombre, "Ana López")
+
     def test_rechazo_pedido_por_stock_insuficiente_rollback_atomico(self):
         # prod1 tiene 20 u. disponible, prod2 tiene 10 u. Pedimos 15 de prod2 (insuficiente)
         items_data = [
@@ -1742,6 +1765,93 @@ class PedidosViewsAndFormsTest(TestCase):
         self.assertEqual(resp_estado.status_code, 200)
         self.assertContains(resp_estado, pedido.numero_operacion)
 
+    def test_pedido_list_view_muestra_pedidos_con_y_sin_cliente(self):
+        pedido_cliente = crear_pedido(
+            cliente_id=self.cliente.id,
+            items_data=[{"producto_id": self.producto.id, "cantidad": 1}],
+        )
+        pedido_consumidor = crear_pedido(
+            cliente_id=None,
+            items_data=[{"producto_id": self.producto.id, "cantidad": 1}],
+        )
+
+        response = self.client.get(reverse("pedido_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, pedido_cliente.cliente_nombre)
+        self.assertContains(response, pedido_consumidor.cliente_nombre)
+        self.assertContains(response, pedido_cliente.numero_operacion)
+        self.assertContains(response, pedido_consumidor.numero_operacion)
+
+    def test_pedido_crear_post_sin_cliente_usa_nombre_comprador(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse("pedido_crear"),
+            {
+                "cliente": "",
+                "nombre_comprador": "Venta de mostrador",
+                "fecha": timezone.now().date().strftime("%Y-%m-%d"),
+                "observacion": "",
+                "items-TOTAL_FORMS": "1",
+                "items-INITIAL_FORMS": "0",
+                "items-MIN_NUM_FORMS": "0",
+                "items-MAX_FORMS": "1000",
+                "items-0-producto": self.producto.id,
+                "items-0-cantidad": "2",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        pedido = Pedido.objects.latest("id")
+        self.assertIsNone(pedido.cliente)
+        self.assertEqual(pedido.cliente_nombre, "Venta de mostrador")
+        self.assertContains(response, "Venta de mostrador")
+
+    def test_pedido_detalle_y_remito_muestran_consumidor_sin_cliente(self):
+        pedido = crear_pedido(
+            cliente_id=None,
+            items_data=[{"producto_id": self.producto.id, "cantidad": 2}],
+        )
+
+        response = self.client.get(reverse("pedido_detalle", kwargs={"pk": pedido.pk}))
+        remito = render_to_string("inventario/pdf/remito.html", {"pedido": pedido})
+        pdf_response = self.client.get(
+            reverse("pedido_pdf", kwargs={"pk": pedido.pk})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Consumidor Final")
+        self.assertIn("Consumidor Final", remito)
+        self.assertNotIn("DNI:", remito)
+        self.assertNotIn("Teléfono:", remito)
+        self.assertEqual(pdf_response.status_code, 200)
+        self.assertEqual(pdf_response["Content-Type"], "application/pdf")
+        self.assertTrue(pdf_response.content.startswith(b"%PDF"))
+
+    def test_boton_salida_abre_venta_con_producto_precargado(self):
+        response = self.client.get(reverse("producto_list"))
+        url_precarga = f'{reverse("pedido_crear")}?producto={self.producto.id}'
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f'href="{url_precarga}"')
+
+        formulario = self.client.get(url_precarga)
+
+        self.assertEqual(formulario.status_code, 200)
+        self.assertEqual(
+            formulario.context["formset"].forms[0]["producto"].value(),
+            self.producto.id,
+        )
+
+    def test_pedido_form_contiene_link_nuevo_cliente_en_otra_pestana(self):
+        response = self.client.get(reverse("pedido_crear"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f'href="{reverse("cliente_list")}"')
+        self.assertContains(response, 'target="_blank" rel="noopener"')
+        self.assertContains(response, "+ Nuevo Cliente")
+
     def test_pedido_crear_view_post_exitoso(self):
         self.client.login(username="operador_ventas", password="password123")
         url = reverse("pedido_crear")
@@ -1860,6 +1970,35 @@ class PedidosViewsAndFormsTest(TestCase):
 
         pedido.refresh_from_db()
         self.assertEqual(pedido.estado, Pedido.EstadoPedido.CANCELADO)
+        self.producto.refresh_from_db()
+        self.assertEqual(self.producto.stock_actual, 15)
+
+
+    def test_pedido_sin_cliente_se_visualiza_y_cancela_con_reintegro(self):
+        self.client.force_login(self.user)
+        pedido = crear_pedido(
+            cliente_id=None,
+            items_data=[{"producto_id": self.producto.id, "cantidad": 4}],
+        )
+        self.producto.refresh_from_db()
+        self.assertEqual(self.producto.stock_actual, 11)
+
+        confirmacion = self.client.get(
+            reverse("pedido_cancelar", kwargs={"pk": pedido.pk})
+        )
+        self.assertEqual(confirmacion.status_code, 200)
+        self.assertContains(confirmacion, "Consumidor Final")
+
+        response = self.client.post(
+            reverse("pedido_cancelar", kwargs={"pk": pedido.pk}),
+            {"motivo": "Cancelación de venta de mostrador"},
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        pedido.refresh_from_db()
+        self.assertEqual(pedido.estado, Pedido.EstadoPedido.CANCELADO)
+        self.assertContains(response, "Consumidor Final")
         self.producto.refresh_from_db()
         self.assertEqual(self.producto.stock_actual, 15)
 
