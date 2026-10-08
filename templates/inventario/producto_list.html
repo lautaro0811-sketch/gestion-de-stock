@@ -106,9 +106,9 @@
                         {% endif %}
                     </td>
                     <td class="text-nowrap">
-                        <a href="{% url 'producto_editar' p.id %}" class="btn btn-action btn-sm">Ver / Editar</a>
-                        <a href="{% url 'movimiento_crear' %}?producto={{ p.id }}&tipo=ENTRADA" class="btn btn-success btn-sm" title="Registrar una entrada por ajuste manual; las compras se registran en Órdenes de Compra">+Entrada manual</a>
-                        <a href="{% url 'pedido_crear' %}?producto={{ p.id }}" class="btn btn-danger btn-sm">-Salida</a>
+                        <a href="{% url 'producto_editar' p.id %}" class="btn btn-soft-primary btn-sm">Ver / Editar</a>
+                        <a href="{% url 'movimiento_crear' %}?producto={{ p.id }}&tipo=ENTRADA" class="btn btn-soft-success btn-sm" title="Registrar una entrada por ajuste manual; las compras se registran en Órdenes de Compra">+Entrada manual</a>
+                        <a href="{% url 'pedido_crear' %}?producto={{ p.id }}" class="btn btn-soft-danger btn-sm">-Salida</a>
                         <a href="{% url 'producto_desactivar' p.id %}" class="btn btn-secondary btn-sm btn-desactivar" title="Dar de baja producto">Desactivar</a>
                     </td>
                 </tr>

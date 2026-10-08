@@ -204,6 +204,31 @@ body {
 .btn-secondary { background-color: var(--color-btn-secondary); }
 .btn-action    { background-color: var(--color-btn-action); }
 
+/* Soft Buttons para acciones de tabla */
+.btn-soft-primary {
+    background-color: #e0f2fe;
+    color: #0284c7;
+    border: none;
+    font-weight: 600;
+}
+.btn-soft-primary:hover { background-color: #bae6fd; color: #0369a1; }
+
+.btn-soft-success {
+    background-color: #dcfce7;
+    color: #15803d;
+    border: none;
+    font-weight: 600;
+}
+.btn-soft-success:hover { background-color: #bbf7d0; color: #166534; }
+
+.btn-soft-danger {
+    background-color: #fee2e2;
+    color: #b91c1c;
+    border: none;
+    font-weight: 600;
+}
+.btn-soft-danger:hover { background-color: #fecaca; color: #991b1b; }
+
 .btn-sm {
     padding: 5px 12px;
     font-size: 0.8rem;
