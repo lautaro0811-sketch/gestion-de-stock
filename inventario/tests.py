@@ -133,6 +133,17 @@ class ProductoListPaginacionTest(TestCase):
         self.assertTrue(page_obj.has_next())
         self.assertFalse(page_obj.has_previous())
 
+    def test_inventario_renderiza_formularios_y_disparadores_de_modales(self):
+        response = self.client.get(reverse("producto_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIsInstance(response.context["producto_form"], ProductoCrearForm)
+        self.assertIsInstance(response.context["categoria_form"], CategoriaForm)
+        self.assertContains(response, '<dialog id="modalProducto"')
+        self.assertContains(response, '<dialog id="modalCategoria"')
+        self.assertContains(response, "document.getElementById('modalProducto').showModal()")
+        self.assertContains(response, "document.getElementById('modalCategoria').showModal()")
+
     def test_paginacion_segunda_pagina_10_elementos(self):
         response = self.client.get(reverse("producto_list"), {"page": 2})
         self.assertEqual(response.status_code, 200)
@@ -788,6 +799,18 @@ class CategoriaViewsTest(TestCase):
         with self.assertNumQueries(1):
             response = self.client.get(reverse('categoria_list'))
             self.assertEqual(response.status_code, 200)
+
+    def test_crear_categoria_desde_inventario_redirige_al_inventario(self):
+        response = self.client.post(
+            reverse("categoria_list"),
+            {
+                "nombre": "Categoría rápida",
+                "next": reverse("producto_list"),
+            },
+        )
+
+        self.assertRedirects(response, reverse("producto_list"))
+        self.assertTrue(Categoria.objects.filter(nombre="Categoría rápida").exists())
 
 
 class ClienteModelAndFormTest(TestCase):

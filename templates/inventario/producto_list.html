@@ -12,7 +12,8 @@
 
         <div class="action-bar">
             <a href="{% url 'movimiento_crear' %}" class="btn btn-primary">Registrar Operación</a>
-            <a href="{% url 'producto_crear' %}" class="btn btn-success">+ Nuevo Producto</a>
+            <button type="button" class="btn btn-success" onclick="document.getElementById('modalProducto').showModal()">+ Nuevo Producto</button>
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('modalCategoria').showModal()">+ Nueva Categoría</button>
             <a href="{% url 'producto_list' %}?stock_bajo=1" class="btn btn-warning">Solo Alertas</a>
             {% if solo_stock_bajo or query or categoria_seleccionada %}
                 <a href="{% url 'producto_list' %}" class="btn btn-secondary">Ver Todos</a>
@@ -105,11 +106,10 @@
                             <span class="badge badge-success">Normal</span>
                         {% endif %}
                     </td>
-                    <td class="text-nowrap">
+                    <td class="acciones-col">
                         <a href="{% url 'producto_editar' p.id %}" class="btn btn-soft-primary btn-sm">Ver / Editar</a>
-                        <a href="{% url 'movimiento_crear' %}?producto={{ p.id }}&tipo=ENTRADA" class="btn btn-soft-success btn-sm" title="Registrar una entrada por ajuste manual; las compras se registran en Órdenes de Compra">+Entrada manual</a>
-                        <a href="{% url 'pedido_crear' %}?producto={{ p.id }}" class="btn btn-soft-danger btn-sm">-Salida</a>
-                        <a href="{% url 'producto_desactivar' p.id %}" class="btn btn-secondary btn-sm btn-desactivar" title="Dar de baja producto">Desactivar</a>
+                        <a href="{% url 'movimiento_crear' %}?producto={{ p.id }}&tipo=ENTRADA" class="btn btn-soft-success btn-sm" title="Registrar una entrada por ajuste manual; las compras se registran en Órdenes de Compra">+ Ent</a>
+                        <a href="{% url 'pedido_crear' %}?producto={{ p.id }}" class="btn btn-soft-danger btn-sm">- Sal</a>
                     </td>
                 </tr>
                 {% empty %}
@@ -124,4 +124,55 @@
     <!-- Paginación -->
     {% include 'inventario/includes/pagination.html' %}
 </div>
+
+<dialog id="modalProducto" aria-labelledby="modal-producto-titulo">
+    <div class="card">
+        <div class="card-header-flex">
+            <h2 class="card-title" id="modal-producto-titulo">Nuevo Producto</h2>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('modalProducto').close()" aria-label="Cerrar">Cerrar</button>
+        </div>
+        <form method="post" action="{% url 'producto_crear' %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% url 'producto_list' %}">
+            {{ producto_form.non_field_errors }}
+            {% for field in producto_form %}
+                <div class="form-group">
+                    <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}<div class="form-desc">{{ field.help_text }}</div>{% endif %}
+                    {{ field.errors }}
+                </div>
+            {% endfor %}
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('modalProducto').close()">Cancelar</button>
+                <button type="submit" class="btn btn-success">Guardar Producto</button>
+            </div>
+        </form>
+    </div>
+</dialog>
+
+<dialog id="modalCategoria" aria-labelledby="modal-categoria-titulo">
+    <div class="card">
+        <div class="card-header-flex">
+            <h2 class="card-title" id="modal-categoria-titulo">Nueva Categoría</h2>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('modalCategoria').close()" aria-label="Cerrar">Cerrar</button>
+        </div>
+        <form method="post" action="{% url 'categoria_list' %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% url 'producto_list' %}">
+            {{ categoria_form.non_field_errors }}
+            {% for field in categoria_form %}
+                <div class="form-group">
+                    <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {{ field.errors }}
+                </div>
+            {% endfor %}
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('modalCategoria').close()">Cancelar</button>
+                <button type="submit" class="btn btn-success">Guardar Categoría</button>
+            </div>
+        </form>
+    </div>
+</dialog>
 {% endblock %}

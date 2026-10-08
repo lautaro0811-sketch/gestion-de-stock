@@ -13,6 +13,7 @@ from django.db.models import F, Q, Count, Sum
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from xhtml2pdf import pisa
@@ -105,6 +106,8 @@ def producto_list(request):
             "solo_stock_bajo": solo_stock_bajo,
             "orden": orden,
             "dir": dir_param,
+            "producto_form": ProductoForm(),
+            "categoria_form": CategoriaForm(),
         },
     )
 
@@ -202,6 +205,8 @@ def categoria_list_crear(request):
         if form.is_valid():
             categoria = form.save()
             messages.success(request, f"Categoría '{categoria.nombre}' creada.")
+            if request.POST.get("next") == reverse("producto_list"):
+                return redirect("producto_list")
             return redirect("categoria_list")
     else:
         form = CategoriaForm()
