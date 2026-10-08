@@ -204,6 +204,31 @@ body {
 .btn-secondary { background-color: var(--color-btn-secondary); }
 .btn-action    { background-color: var(--color-btn-action); }
 
+/* Soft Buttons para acciones de tabla */
+.btn-soft-primary {
+    background-color: #e0f2fe;
+    color: #0284c7;
+    border: none;
+    font-weight: 600;
+}
+.btn-soft-primary:hover { background-color: #bae6fd; color: #0369a1; }
+
+.btn-soft-success {
+    background-color: #dcfce7;
+    color: #15803d;
+    border: none;
+    font-weight: 600;
+}
+.btn-soft-success:hover { background-color: #bbf7d0; color: #166534; }
+
+.btn-soft-danger {
+    background-color: #fee2e2;
+    color: #b91c1c;
+    border: none;
+    font-weight: 600;
+}
+.btn-soft-danger:hover { background-color: #fecaca; color: #991b1b; }
+
 .btn-sm {
     padding: 5px 12px;
     font-size: 0.8rem;
@@ -244,6 +269,13 @@ table {
 th, td { 
     padding: 13px 16px; 
     font-size: 0.9rem;
+}
+
+td.acciones-col {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    border-bottom: none;
 }
 
 th { 
@@ -316,19 +348,25 @@ tr.row-normal     { background-color: var(--color-row-normal-bg); }
 .form-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; }
 .form-card-container { max-width: 580px; margin: 20px auto; }
 
-dialog#modalProducto {
+dialog#modalProducto,
+dialog#modalCategoria {
+    position: fixed;
+    inset: 0;
     margin: auto;
     border: 1px solid var(--color-border);
     border-radius: 12px;
     padding: 24px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-    max-width: 550px;
-    width: 100%;
+    width: min(550px, calc(100vw - 32px));
+    max-height: calc(100dvh - 32px);
+    overflow-y: auto;
     background: var(--color-card-bg);
 }
 
-dialog#modalProducto::backdrop {
+dialog#modalProducto::backdrop,
+dialog#modalCategoria::backdrop {
     background: rgba(15, 23, 42, 0.6);
+    -webkit-backdrop-filter: blur(3px);
     backdrop-filter: blur(2px);
 }
 

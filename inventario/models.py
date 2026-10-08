@@ -150,7 +150,8 @@ class Movimiento(models.Model):
         ordering = ["-fecha"]
 
     def __str__(self):
-        return f"{self.tipo} - {self.producto.nombre} ({self.cantidad}) el {self.fecha.strftime('%d/%m/%Y %H:%M')}"
+        fecha_local = timezone.localtime(self.fecha)
+        return f"{self.tipo} - {self.producto.nombre} ({self.cantidad}) el {fecha_local.strftime('%d/%m/%Y %H:%M')}"
 
     def save(self, *args, **kwargs):
         if self.pk is not None and not self._state.adding:
@@ -293,6 +294,8 @@ class Pedido(models.Model):
         on_delete=models.PROTECT,
         related_name="pedidos",
         verbose_name="Cliente",
+        null=True,
+        blank=True,
     )
     cliente_nombre = models.CharField(max_length=150, blank=True, default="", verbose_name="Nombre del cliente al vender")
     cliente_tipo_documento = models.CharField(max_length=10, blank=True, default="", verbose_name="Tipo de documento al vender")
@@ -322,7 +325,7 @@ class Pedido(models.Model):
         ordering = ["-fecha", "-id"]
 
     def __str__(self):
-        return f"Pedido #{self.numero_operacion} - {self.cliente.nombre}"
+        return f"Pedido #{self.numero_operacion} - {self.cliente_nombre or 'Consumidor Final'}"
 
     @property
     def total(self):
@@ -497,4 +500,5 @@ class MovimientoCaja(models.Model):
 
     def __str__(self):
         signo = "+" if self.tipo == self.TipoMovimientoCaja.INGRESO else "-"
-        return f"{signo}${self.monto} - {self.concepto} ({self.fecha.strftime('%d/%m/%Y %H:%M')})"
+        fecha_local = timezone.localtime(self.fecha)
+        return f"{signo}${self.monto} - {self.concepto} ({fecha_local.strftime('%d/%m/%Y %H:%M')})"

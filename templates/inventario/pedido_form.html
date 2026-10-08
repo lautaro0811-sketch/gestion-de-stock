@@ -16,15 +16,24 @@
         <!-- Cabecera del Pedido -->
         <div class="form-grid-row">
             <div class="form-group">
-                <label class="form-label">Cliente *</label>
+                <label class="form-label">Cliente</label>
                 {{ form.cliente }}
                 {{ form.cliente.errors }}
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="{{ form.nombre_comprador.id_for_label }}">{{ form.nombre_comprador.label }}</label>
+                {{ form.nombre_comprador }}
+                {% if form.nombre_comprador.help_text %}<div class="form-desc">{{ form.nombre_comprador.help_text }}</div>{% endif %}
+                {{ form.nombre_comprador.errors }}
             </div>
             <div class="form-group">
                 <label class="form-label">Fecha de Venta *</label>
                 {{ form.fecha }}
                 {{ form.fecha.errors }}
             </div>
+        </div>
+        <div class="form-full-row">
+            <a href="{% url 'cliente_list' %}" class="btn btn-secondary btn-sm" target="_blank" rel="noopener">+ Nuevo Cliente</a>
         </div>
 
         <div class="form-full-row">

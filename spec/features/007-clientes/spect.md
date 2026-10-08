@@ -44,3 +44,7 @@ Es la base para poder asociar las ventas (salidas de stock) a una persona o empr
 - Mostrar el historial de compras de cada cliente. Depende de que exista `Pedido` (008); se agrega ahí o en una revisión posterior de esta vista.
 - Edición de los datos de un cliente ya cargado (por ahora solo alta y baja lógica).
 - Roles, permisos o restricciones de acceso a la vista de clientes.
+
+## Nota de integración (015)
+
+La feature de integración permite registrar ventas sin seleccionar un Cliente, usando el snapshot de comprador de la venta para consumidor final. El padrón de clientes y su validación permanecen sin cambios; el acceso “+ Nuevo Cliente” desde Nueva Venta abre esta vista en otra pestaña.

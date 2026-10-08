@@ -22,6 +22,7 @@ from inventario.forms import (
     EgresoCajaForm,
     ItemPedidoFormSet,
     MovimientoUnificadoForm,
+    OrdenCompraForm,
     PedidoForm,
     PedidoItemFormSet,
     ProductoCrearForm,
@@ -49,6 +50,26 @@ from inventario.services import (
     registrar_salida,
     recibir_mercaderia,
 )
+
+
+class ArgentinaTimezoneFormsTest(TestCase):
+    def test_operation_forms_use_argentina_local_date_as_initial(self):
+        fixed_now = datetime.datetime(
+            2026, 10, 7, 2, 15, tzinfo=datetime.timezone.utc
+        )
+        expected_date = datetime.date(2026, 10, 6)
+
+        with patch("django.utils.timezone.now", return_value=fixed_now):
+            forms = (
+                MovimientoUnificadoForm(),
+                PedidoForm(),
+                OrdenCompraForm(),
+            )
+            form_dates = tuple(form["fecha"].value() for form in forms)
+
+        for form, form_date in zip(forms, form_dates):
+            with self.subTest(form=form.__class__.__name__):
+                self.assertEqual(form_date, expected_date)
 
 
 class StockBajoFExpressionTest(TestCase):
@@ -111,6 +132,17 @@ class ProductoListPaginacionTest(TestCase):
         self.assertEqual(page_obj.paginator.num_pages, 2)
         self.assertTrue(page_obj.has_next())
         self.assertFalse(page_obj.has_previous())
+
+    def test_inventario_renderiza_formularios_y_disparadores_de_modales(self):
+        response = self.client.get(reverse("producto_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIsInstance(response.context["producto_form"], ProductoCrearForm)
+        self.assertIsInstance(response.context["categoria_form"], CategoriaForm)
+        self.assertContains(response, '<dialog id="modalProducto"')
+        self.assertContains(response, '<dialog id="modalCategoria"')
+        self.assertContains(response, "document.getElementById('modalProducto').showModal()")
+        self.assertContains(response, "document.getElementById('modalCategoria').showModal()")
 
     def test_paginacion_segunda_pagina_10_elementos(self):
         response = self.client.get(reverse("producto_list"), {"page": 2})
@@ -352,6 +384,31 @@ class MovimientoViewsAuditoriaTest(TestCase):
         self.assertEqual(movimiento.created_by, self.user)
         self.assertEqual(movimiento.stock_anterior, 5)
         self.assertEqual(movimiento.stock_posterior, 17)
+
+    def test_movimiento_crear_usa_hora_local_de_argentina(self):
+        fixed_now = datetime.datetime(
+            2026, 10, 7, 2, 15, tzinfo=datetime.timezone.utc
+        )
+
+        with patch("django.utils.timezone.now", return_value=fixed_now):
+            response = self.client.post(
+                reverse("movimiento_crear"),
+                {
+                    "producto": self.producto.id,
+                    "tipo": "ENTRADA",
+                    "cantidad": 1,
+                    "fecha": "2026-10-06",
+                    "observacion": "Prueba horaria",
+                },
+            )
+
+        self.assertEqual(response.status_code, 302)
+        movimiento = Movimiento.objects.get(observacion="Prueba horaria")
+        self.assertEqual(
+            timezone.localtime(movimiento.fecha).strftime("%d/%m/%Y %H:%M"),
+            "06/10/2026 23:15",
+        )
+        self.assertIn("06/10/2026 23:15", str(movimiento))
 
     def test_producto_crear_stock_inicial_asocia_usuario_autenticado(self):
         self.client.login(username="operador", password="operadorpass123")
@@ -742,6 +799,18 @@ class CategoriaViewsTest(TestCase):
         with self.assertNumQueries(1):
             response = self.client.get(reverse('categoria_list'))
             self.assertEqual(response.status_code, 200)
+
+    def test_crear_categoria_desde_inventario_redirige_al_inventario(self):
+        response = self.client.post(
+            reverse("categoria_list"),
+            {
+                "nombre": "Categoría rápida",
+                "next": reverse("producto_list"),
+            },
+        )
+
+        self.assertRedirects(response, reverse("producto_list"))
+        self.assertTrue(Categoria.objects.filter(nombre="Categoría rápida").exists())
 
 
 class ClienteModelAndFormTest(TestCase):
@@ -1328,6 +1397,29 @@ class PedidosServicesTest(TestCase):
             self.assertEqual(m.created_by, self.user)
             self.assertEqual(m.pedido, pedido)
 
+    def test_creacion_pedido_sin_cliente_usa_consumidor_final(self):
+        pedido = crear_pedido(
+            cliente_id=None,
+            items_data=[{"producto_id": self.prod1.id, "cantidad": 1}],
+        )
+
+        self.assertIsNone(pedido.cliente)
+        self.assertEqual(pedido.cliente_nombre, "Consumidor Final")
+        self.assertEqual(pedido.cliente_tipo_documento, "")
+        self.assertEqual(pedido.cliente_numero_documento, "")
+        self.assertEqual(pedido.cliente_telefono, "")
+        self.assertEqual(str(pedido), f"Pedido #{pedido.numero_operacion} - Consumidor Final")
+
+    def test_creacion_pedido_sin_cliente_usa_nombre_comprador(self):
+        pedido = crear_pedido(
+            cliente_id=None,
+            nombre_comprador="  Ana López  ",
+            items_data=[{"producto_id": self.prod1.id, "cantidad": 1}],
+        )
+
+        self.assertIsNone(pedido.cliente)
+        self.assertEqual(pedido.cliente_nombre, "Ana López")
+
     def test_rechazo_pedido_por_stock_insuficiente_rollback_atomico(self):
         # prod1 tiene 20 u. disponible, prod2 tiene 10 u. Pedimos 15 de prod2 (insuficiente)
         items_data = [
@@ -1466,6 +1558,45 @@ class OrdenesCompraServicesTest(TestCase):
                     "precio_unitario_compra": Decimal("18.50"),
                 }
             ],
+        )
+
+    def test_orden_creada_y_mostrada_con_hora_local_de_argentina(self):
+        fixed_now = datetime.datetime(
+            2026, 10, 7, 2, 15, tzinfo=datetime.timezone.utc
+        )
+
+        with patch("django.utils.timezone.now", return_value=fixed_now):
+            response = self.client.post(
+                reverse("orden_compra_crear"),
+                {
+                    "proveedor": self.proveedor.id,
+                    "fecha": "2026-10-06",
+                    "observacion": "",
+                    "items-TOTAL_FORMS": "1",
+                    "items-INITIAL_FORMS": "0",
+                    "items-MIN_NUM_FORMS": "0",
+                    "items-MAX_NUM_FORMS": "1000",
+                    "items-0-producto": self.producto.id,
+                    "items-0-cantidad": "2",
+                    "items-0-precio_unitario_compra": "18.50",
+                },
+            )
+
+        self.assertEqual(response.status_code, 302)
+        orden = OrdenCompra.objects.latest("id")
+        self.assertEqual(
+            timezone.localtime(orden.fecha).strftime("%d/%m/%Y %H:%M"),
+            "06/10/2026 23:15",
+        )
+        self.assertContains(
+            self.client.get(reverse("orden_compra_list")),
+            "06/10/2026 23:15",
+        )
+        self.assertContains(
+            self.client.get(
+                reverse("orden_compra_detalle", kwargs={"pk": orden.pk})
+            ),
+            "06/10/2026 23:15",
         )
 
     def test_crear_orden_no_modifica_stock(self):
@@ -1742,6 +1873,93 @@ class PedidosViewsAndFormsTest(TestCase):
         self.assertEqual(resp_estado.status_code, 200)
         self.assertContains(resp_estado, pedido.numero_operacion)
 
+    def test_pedido_list_view_muestra_pedidos_con_y_sin_cliente(self):
+        pedido_cliente = crear_pedido(
+            cliente_id=self.cliente.id,
+            items_data=[{"producto_id": self.producto.id, "cantidad": 1}],
+        )
+        pedido_consumidor = crear_pedido(
+            cliente_id=None,
+            items_data=[{"producto_id": self.producto.id, "cantidad": 1}],
+        )
+
+        response = self.client.get(reverse("pedido_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, pedido_cliente.cliente_nombre)
+        self.assertContains(response, pedido_consumidor.cliente_nombre)
+        self.assertContains(response, pedido_cliente.numero_operacion)
+        self.assertContains(response, pedido_consumidor.numero_operacion)
+
+    def test_pedido_crear_post_sin_cliente_usa_nombre_comprador(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse("pedido_crear"),
+            {
+                "cliente": "",
+                "nombre_comprador": "Venta de mostrador",
+                "fecha": timezone.now().date().strftime("%Y-%m-%d"),
+                "observacion": "",
+                "items-TOTAL_FORMS": "1",
+                "items-INITIAL_FORMS": "0",
+                "items-MIN_NUM_FORMS": "0",
+                "items-MAX_FORMS": "1000",
+                "items-0-producto": self.producto.id,
+                "items-0-cantidad": "2",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        pedido = Pedido.objects.latest("id")
+        self.assertIsNone(pedido.cliente)
+        self.assertEqual(pedido.cliente_nombre, "Venta de mostrador")
+        self.assertContains(response, "Venta de mostrador")
+
+    def test_pedido_detalle_y_remito_muestran_consumidor_sin_cliente(self):
+        pedido = crear_pedido(
+            cliente_id=None,
+            items_data=[{"producto_id": self.producto.id, "cantidad": 2}],
+        )
+
+        response = self.client.get(reverse("pedido_detalle", kwargs={"pk": pedido.pk}))
+        remito = render_to_string("inventario/pdf/remito.html", {"pedido": pedido})
+        pdf_response = self.client.get(
+            reverse("pedido_pdf", kwargs={"pk": pedido.pk})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Consumidor Final")
+        self.assertIn("Consumidor Final", remito)
+        self.assertNotIn("DNI:", remito)
+        self.assertNotIn("Teléfono:", remito)
+        self.assertEqual(pdf_response.status_code, 200)
+        self.assertEqual(pdf_response["Content-Type"], "application/pdf")
+        self.assertTrue(pdf_response.content.startswith(b"%PDF"))
+
+    def test_boton_salida_abre_venta_con_producto_precargado(self):
+        response = self.client.get(reverse("producto_list"))
+        url_precarga = f'{reverse("pedido_crear")}?producto={self.producto.id}'
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f'href="{url_precarga}"')
+
+        formulario = self.client.get(url_precarga)
+
+        self.assertEqual(formulario.status_code, 200)
+        self.assertEqual(
+            formulario.context["formset"].forms[0]["producto"].value(),
+            self.producto.id,
+        )
+
+    def test_pedido_form_contiene_link_nuevo_cliente_en_otra_pestana(self):
+        response = self.client.get(reverse("pedido_crear"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f'href="{reverse("cliente_list")}"')
+        self.assertContains(response, 'target="_blank" rel="noopener"')
+        self.assertContains(response, "+ Nuevo Cliente")
+
     def test_pedido_crear_view_post_exitoso(self):
         self.client.login(username="operador_ventas", password="password123")
         url = reverse("pedido_crear")
@@ -1768,6 +1986,57 @@ class PedidosViewsAndFormsTest(TestCase):
 
         self.producto.refresh_from_db()
         self.assertEqual(self.producto.stock_actual, 12)
+
+    def test_pedido_guarda_y_muestra_hora_local_de_argentina(self):
+        self.client.force_login(self.user)
+        fixed_now = datetime.datetime(
+            2026, 10, 7, 2, 15, tzinfo=datetime.timezone.utc
+        )
+
+        with patch("django.utils.timezone.now", return_value=fixed_now):
+            response = self.client.post(
+                reverse("pedido_crear"),
+                {
+                    "cliente": self.cliente.id,
+                    "nombre_comprador": "",
+                    "fecha": "2026-10-06",
+                    "observacion": "",
+                    "items-TOTAL_FORMS": "1",
+                    "items-INITIAL_FORMS": "0",
+                    "items-MIN_NUM_FORMS": "0",
+                    "items-MAX_NUM_FORMS": "1000",
+                    "items-0-producto": self.producto.id,
+                    "items-0-cantidad": "1",
+                },
+            )
+
+        self.assertEqual(response.status_code, 302)
+        pedido = Pedido.objects.latest("id")
+        self.assertEqual(
+            timezone.localtime(pedido.fecha).strftime("%d/%m/%Y %H:%M"),
+            "06/10/2026 23:15",
+        )
+        self.assertEqual(
+            timezone.localtime(Movimiento.objects.get(pedido=pedido).fecha).strftime(
+                "%d/%m/%Y %H:%M"
+            ),
+            "06/10/2026 23:15",
+        )
+        ingreso_caja = MovimientoCaja.objects.get(pedido=pedido)
+        hora_local_caja = timezone.localtime(ingreso_caja.fecha).strftime(
+            "%d/%m/%Y %H:%M"
+        )
+        self.assertIn(hora_local_caja, str(ingreso_caja))
+        self.assertContains(
+            self.client.get(reverse("pedido_list")),
+            "06/10/2026 23:15",
+        )
+        self.assertContains(
+            self.client.get(reverse("pedido_detalle", kwargs={"pk": pedido.pk})),
+            "06/10/2026 23:15",
+        )
+        remito = render_to_string("inventario/pdf/remito.html", {"pedido": pedido})
+        self.assertIn("06/10/2026 23:15", remito)
 
     def test_pedido_crear_view_stock_insuficiente_muestra_error(self):
         self.client.login(username="operador_ventas", password="password123")
@@ -1860,6 +2129,35 @@ class PedidosViewsAndFormsTest(TestCase):
 
         pedido.refresh_from_db()
         self.assertEqual(pedido.estado, Pedido.EstadoPedido.CANCELADO)
+        self.producto.refresh_from_db()
+        self.assertEqual(self.producto.stock_actual, 15)
+
+
+    def test_pedido_sin_cliente_se_visualiza_y_cancela_con_reintegro(self):
+        self.client.force_login(self.user)
+        pedido = crear_pedido(
+            cliente_id=None,
+            items_data=[{"producto_id": self.producto.id, "cantidad": 4}],
+        )
+        self.producto.refresh_from_db()
+        self.assertEqual(self.producto.stock_actual, 11)
+
+        confirmacion = self.client.get(
+            reverse("pedido_cancelar", kwargs={"pk": pedido.pk})
+        )
+        self.assertEqual(confirmacion.status_code, 200)
+        self.assertContains(confirmacion, "Consumidor Final")
+
+        response = self.client.post(
+            reverse("pedido_cancelar", kwargs={"pk": pedido.pk}),
+            {"motivo": "Cancelación de venta de mostrador"},
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        pedido.refresh_from_db()
+        self.assertEqual(pedido.estado, Pedido.EstadoPedido.CANCELADO)
+        self.assertContains(response, "Consumidor Final")
         self.producto.refresh_from_db()
         self.assertEqual(self.producto.stock_actual, 15)
 

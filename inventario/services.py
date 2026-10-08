@@ -187,20 +187,23 @@ def registrar_egreso_caja(
 
 @transaction.atomic
 def crear_pedido(
-    cliente_id: int,
+    cliente_id: int | None,
     items_data: list,
     usuario=None,
     fecha=None,
     observacion: str = "",
+    nombre_comprador: str = "",
 ) -> Pedido:
     """Crea un pedido de venta generando número correlativo y descontando stock."""
     if not items_data:
         raise ValidationError("El pedido debe contener al menos un ítem.")
 
-    try:
-        cliente = Cliente.objects.get(pk=cliente_id, activo=True)
-    except Cliente.DoesNotExist:
-        raise ValidationError("El cliente seleccionado no existe o no está activo.")
+    cliente = None
+    if cliente_id is not None:
+        try:
+            cliente = Cliente.objects.get(pk=cliente_id, activo=True)
+        except Cliente.DoesNotExist:
+            raise ValidationError("El cliente seleccionado no existe o no está activo.")
 
     fecha_pedido = fecha or timezone.now()
     anio = fecha_pedido.year
@@ -226,13 +229,24 @@ def crear_pedido(
         siguiente_seq += 1
         numero_operacion = f"{anio}-{siguiente_seq:04d}"
 
+    if cliente:
+        cliente_nombre = cliente.nombre
+        cliente_tipo_documento = cliente.tipo_documento or ""
+        cliente_numero_documento = cliente.numero_documento or ""
+        cliente_telefono = cliente.telefono
+    else:
+        cliente_nombre = nombre_comprador.strip() or "Consumidor Final"
+        cliente_tipo_documento = ""
+        cliente_numero_documento = ""
+        cliente_telefono = ""
+
     pedido = Pedido.objects.create(
         numero_operacion=numero_operacion,
         cliente=cliente,
-        cliente_nombre=cliente.nombre,
-        cliente_tipo_documento=cliente.tipo_documento or "",
-        cliente_numero_documento=cliente.numero_documento or "",
-        cliente_telefono=cliente.telefono,
+        cliente_nombre=cliente_nombre,
+        cliente_tipo_documento=cliente_tipo_documento,
+        cliente_numero_documento=cliente_numero_documento,
+        cliente_telefono=cliente_telefono,
         fecha=fecha_pedido,
         estado=Pedido.EstadoPedido.CONFIRMADO,
         observacion=observacion,

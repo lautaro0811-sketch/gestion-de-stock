@@ -197,7 +197,7 @@ class MovimientoUnificadoForm(forms.Form):
         widget=forms.Select(attrs={"class": "form-control"}),
     )
     fecha = forms.DateField(
-        initial=timezone.now().date,
+        initial=timezone.localdate,
         widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}),
     )
     tipo = forms.ChoiceField(
@@ -253,9 +253,17 @@ class MovimientoUnificadoForm(forms.Form):
 
 
 class PedidoForm(forms.ModelForm):
+    nombre_comprador = forms.CharField(
+        required=False,
+        max_length=150,
+        label="Nombre del comprador",
+        help_text="Opcional; se usa cuando no seleccionás un cliente registrado.",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+
     class Meta:
         model = Pedido
-        fields = ["cliente", "fecha", "observacion"]
+        fields = ["cliente", "nombre_comprador", "fecha", "observacion"]
         labels = {
             "cliente": "Cliente",
             "fecha": "Fecha de venta",
@@ -271,7 +279,7 @@ class PedidoForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["cliente"].queryset = Cliente.objects.filter(activo=True).order_by("nombre")
         if not self.initial.get("fecha"):
-            self.initial["fecha"] = timezone.now().date()
+            self.initial["fecha"] = timezone.localdate()
 
 
 class ItemPedidoForm(forms.ModelForm):
@@ -300,32 +308,32 @@ ItemPedidoFormSet = inlineformset_factory(
 PedidoItemFormSet = ItemPedidoFormSet
 
 
-class OrdenCompraForm(forms.ModelForm):
+class OrdenCompraForm(forms.Form):
+    proveedor = forms.ModelChoiceField(
+        queryset=Proveedor.objects.none(),
+        widget=forms.Select(attrs={"class": "form-control"}),
+    )
     fecha = forms.DateField(
-        initial=timezone.now().date,
+        initial=timezone.localdate,
         widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}),
         label="Fecha de compra",
     )
-
-    class Meta:
-        model = OrdenCompra
-        fields = ["proveedor", "fecha", "observacion"]
-        labels = {
-            "proveedor": "Proveedor",
-            "observacion": "Observaciones",
-        }
-        widgets = {
-            "proveedor": forms.Select(attrs={"class": "form-control"}),
-            "observacion": forms.Textarea(
-                attrs={"class": "form-control", "rows": 2, "placeholder": "Observaciones opcionales..."}
-            ),
-        }
+    observacion = forms.CharField(
+        required=False,
+        widget=forms.Textarea(
+            attrs={
+                "class": "form-control",
+                "rows": 2,
+                "placeholder": "Observaciones opcionales...",
+            }
+        ),
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["proveedor"].queryset = Proveedor.objects.filter(activo=True).order_by("nombre")
         if not self.initial.get("fecha"):
-            self.initial["fecha"] = timezone.now().date()
+            self.initial["fecha"] = timezone.localdate()
 
 
 class ItemOrdenCompraForm(forms.ModelForm):

@@ -15,7 +15,7 @@ Digitaliza la entrega de comprobantes y permite tener un respaldo físico o envi
 - [x] En la vista de detalle de un pedido (`pedido_detalle.html`), existe un botón destacado "Descargar PDF" o "Imprimir Remito".
 - [x] Al hacer clic, el sistema genera un archivo `.pdf` descargable con la nomenclatura `Remito_YYYY-XXXX.pdf` (usando el número de operación).
 - [x] El documento PDF incluye un espacio genérico/placeholder en la cabecera para los datos de la Empresa.
-- [x] El documento PDF incluye los datos del Cliente: Nombre completo y DNI/contacto (si están registrados).
+- [x] El documento PDF incluye los datos del comprador guardados en el snapshot. Si la venta no tiene Cliente registrado, muestra el nombre ingresado o `"Consumidor Final"` y omite documento y teléfono.
 - [x] El documento PDF incluye los datos de la Operación: Número correlativo (`2026-0001`), Fecha de la venta y Estado.
 - [x] El documento PDF muestra una tabla clara con los ítems: Producto, Cantidad, Precio Unitario (histórico congelado) y Subtotal.
 - [x] El documento PDF muestra el Total de la operación al pie de la tabla.
@@ -25,3 +25,7 @@ Digitaliza la entrega de comprobantes y permite tener un respaldo físico o envi
 
 - Configuración dinámica de los datos de la empresa (logo, razón social, CUIT). Queda diferido para una feature futura de "Configuración del Sistema"; por ahora se usan textos estáticos o placeholders.
 - Envío automatizado de correos electrónicos con el PDF adjunto.
+
+## Nota de integración (015)
+
+Las ventas sin Cliente registrado también generan remitos; estos reutilizan los campos snapshot existentes, sin crear un registro ficticio de Cliente.
