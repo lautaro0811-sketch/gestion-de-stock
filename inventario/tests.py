@@ -722,8 +722,8 @@ class MovimientosReglasNegocioTest(TestCase):
 
         movimiento = Movimiento.objects.filter(producto=self.prod_a, observacion="Carga de remito antiguo").first()
         self.assertIsNotNone(movimiento)
-        # La fecha en el modelo debe coincidir exactamente con el día indicado
-        self.assertEqual(movimiento.fecha.date(), fecha_pasada)
+        # Compare in the configured local timezone; the stored instant is UTC.
+        self.assertEqual(timezone.localtime(movimiento.fecha).date(), fecha_pasada)
         self.assertEqual(movimiento.cantidad, 7)
         self.assertEqual(movimiento.tipo, Movimiento.TipoMovimiento.ENTRADA)
 
@@ -2251,6 +2251,178 @@ class CajaFeatureTest(TestCase):
             MovimientoCaja.objects.filter(pedido__isnull=True).exists()
         )
         self.assertNotRegex(response.content.decode(), r"\bstyle\s*=")
+
+    def test_dashboard_filtra_por_mes_actual_y_recalcula_totales(self):
+        ahora = timezone.now()
+        mes_anterior = ahora - datetime.timedelta(days=40)
+
+        MovimientoCaja.objects.create(
+            tipo=MovimientoCaja.TipoMovimientoCaja.INGRESO,
+            monto=Decimal("100.00"),
+            concepto="Ingreso actual",
+            fecha=ahora,
+        )
+        MovimientoCaja.objects.create(
+            tipo=MovimientoCaja.TipoMovimientoCaja.EGRESO,
+            monto=Decimal("30.00"),
+            concepto="Egreso actual",
+            fecha=ahora,
+        )
+        MovimientoCaja.objects.create(
+            tipo=MovimientoCaja.TipoMovimientoCaja.INGRESO,
+            monto=Decimal("500.00"),
+            concepto="Ingreso vencido",
+            fecha=mes_anterior,
+        )
+        MovimientoCaja.objects.create(
+            tipo=MovimientoCaja.TipoMovimientoCaja.EGRESO,
+            monto=Decimal("200.00"),
+            concepto="Egreso vencido",
+            fecha=mes_anterior,
+        )
+
+        response = self.client.get(reverse("caja_dashboard"), {"periodo": "mes_actual"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["total_ingresos"], Decimal("100.00"))
+        self.assertEqual(response.context["total_egresos"], Decimal("30.00"))
+        self.assertEqual(response.context["saldo"], Decimal("70.00"))
+        self.assertTrue(response.context["mostrar_saldo_periodo"])
+
+    def test_dashboard_filtra_por_mes_y_anio_especificos_y_por_tipo(self):
+        ahora = timezone.now()
+        mes_anterior = ahora - datetime.timedelta(days=40)
+
+        MovimientoCaja.objects.create(
+            tipo=MovimientoCaja.TipoMovimientoCaja.INGRESO,
+            monto=Decimal("150.00"),
+            concepto="Ingreso mes anterior",
+            fecha=mes_anterior,
+        )
+        MovimientoCaja.objects.create(
+            tipo=MovimientoCaja.TipoMovimientoCaja.EGRESO,
+            monto=Decimal("50.00"),
+            concepto="Egreso mes anterior",
+            fecha=mes_anterior,
+        )
+        MovimientoCaja.objects.create(
+            tipo=MovimientoCaja.TipoMovimientoCaja.INGRESO,
+            monto=Decimal("80.00"),
+            concepto="Ingreso de este año",
+            fecha=ahora,
+        )
+        MovimientoCaja.objects.create(
+            tipo=MovimientoCaja.TipoMovimientoCaja.EGRESO,
+            monto=Decimal("20.00"),
+            concepto="Egreso de este año",
+            fecha=ahora,
+        )
+
+        response = self.client.get(
+            reverse("caja_dashboard"),
+            {"periodo": "mes_especifico", "mes": mes_anterior.month, "anio": mes_anterior.year, "tipo": "INGRESO"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["total_ingresos"], Decimal("150.00"))
+        self.assertEqual(response.context["total_egresos"], Decimal("50.00"))
+        self.assertEqual(response.context["saldo"], Decimal("100.00"))
+        self.assertEqual(len(response.context["movimientos"]), 1)
+        self.assertEqual(response.context["tipo"], "INGRESO")
+
+    def test_dashboard_filtra_por_tipo_sin_alterar_agregados(self):
+        ahora = timezone.now()
+        MovimientoCaja.objects.create(
+            tipo=MovimientoCaja.TipoMovimientoCaja.INGRESO,
+            monto=Decimal("90.00"),
+            concepto="Ingreso 1",
+            fecha=ahora,
+        )
+        MovimientoCaja.objects.create(
+            tipo=MovimientoCaja.TipoMovimientoCaja.INGRESO,
+            monto=Decimal("10.00"),
+            concepto="Ingreso 2",
+            fecha=ahora,
+        )
+        MovimientoCaja.objects.create(
+            tipo=MovimientoCaja.TipoMovimientoCaja.EGRESO,
+            monto=Decimal("40.00"),
+            concepto="Egreso 1",
+            fecha=ahora,
+        )
+
+        response = self.client.get(reverse("caja_dashboard"), {"periodo": "anio_actual", "tipo": "INGRESO"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["total_ingresos"], Decimal("100.00"))
+        self.assertEqual(response.context["total_egresos"], Decimal("40.00"))
+        self.assertEqual(response.context["saldo"], Decimal("60.00"))
+        self.assertEqual(len(response.context["movimientos"]), 2)
+
+    def test_dashboard_filtra_egresos_y_conserva_agregados_combinados(self):
+        ahora = timezone.now()
+        MovimientoCaja.objects.create(
+            tipo=MovimientoCaja.TipoMovimientoCaja.INGRESO,
+            monto=Decimal("100.00"),
+            concepto="Ingreso incluido en saldo",
+            fecha=ahora,
+        )
+        MovimientoCaja.objects.create(
+            tipo=MovimientoCaja.TipoMovimientoCaja.EGRESO,
+            monto=Decimal("40.00"),
+            concepto="Primer egreso",
+            fecha=ahora,
+        )
+        MovimientoCaja.objects.create(
+            tipo=MovimientoCaja.TipoMovimientoCaja.EGRESO,
+            monto=Decimal("10.00"),
+            concepto="Segundo egreso",
+            fecha=ahora,
+        )
+
+        response = self.client.get(
+            reverse("caja_dashboard"),
+            {"periodo": "anio_actual", "tipo": "EGRESO"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["total_ingresos"], Decimal("100.00"))
+        self.assertEqual(response.context["total_egresos"], Decimal("50.00"))
+        self.assertEqual(response.context["saldo"], Decimal("50.00"))
+        movimientos = list(response.context["movimientos"])
+        self.assertEqual(len(movimientos), 2)
+        self.assertTrue(all(movimiento.tipo == MovimientoCaja.TipoMovimientoCaja.EGRESO for movimiento in movimientos))
+        self.assertEqual(
+            {movimiento.concepto for movimiento in movimientos},
+            {"Primer egreso", "Segundo egreso"},
+        )
+
+    def test_dashboard_ignora_parametros_invalidos_y_muestra_titulo_periodo(self):
+        ahora = timezone.now()
+        MovimientoCaja.objects.create(
+            tipo=MovimientoCaja.TipoMovimientoCaja.INGRESO,
+            monto=Decimal("55.00"),
+            concepto="Ingreso válido",
+            fecha=ahora,
+        )
+
+        response = self.client.get(
+            reverse("caja_dashboard"),
+            {"periodo": "mes_especifico", "mes": "13", "anio": "abc", "tipo": "XYZ"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["periodo"], "todo")
+        self.assertEqual(response.context["tipo"], "TODOS")
+        self.assertEqual(response.context["total_ingresos"], Decimal("55.00"))
+        self.assertFalse(response.context["mostrar_saldo_periodo"])
+        self.assertContains(response, "Saldo actual")
+
+    def test_dashboard_preserva_tipo_en_links_de_periodo(self):
+        response = self.client.get(reverse("caja_dashboard"), {"periodo": "mes_actual", "tipo": "INGRESO"})
+
+        self.assertContains(response, "periodo=mes_actual")
+        self.assertContains(response, "tipo=INGRESO")
 
     def test_egreso_manual_valida_y_registra_el_concepto(self):
         form = EgresoCajaForm(data={"monto": "0", "concepto": "Gasto inválido"})
