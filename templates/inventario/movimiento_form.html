@@ -1,18 +1,23 @@
 {% extends 'base.html' %}
 
-{% block title %}Registro de Movimientos{% endblock %}
-{% block topbar_title %}Registro de Movimientos{% endblock %}
+{% block title %}Ajuste Manual de Inventario{% endblock %}
+{% block topbar_title %}Ajuste Manual de Inventario{% endblock %}
 
 {% block content %}
-<div class="card">
-    <h2 class="card-title mb-20">Nuevo Movimiento</h2>
+<div class="card movement-adjustment-card">
+    <h2 class="card-title mb-20">Registrar Ajuste Manual</h2>
+    <p class="form-desc movement-intro">
+        Use esta operación solo para conteos físicos, roturas, mermas o correcciones de saldo.
+        Las compras y ventas se registran en sus módulos comerciales.
+    </p>
 
     <form method="post" novalidate>
         {% csrf_token %}
+        {{ form.non_field_errors }}
 
         <div class="form-grid-row">
             <div>
-                <label class="form-label">Producto *</label>
+                <label class="form-label" for="{{ form.producto.id_for_label }}">Producto *</label>
                 {{ form.producto }}
                 {% for error in form.producto.errors %}
                     <div class="field-error">{{ error }}</div>
@@ -20,7 +25,7 @@
             </div>
 
             <div>
-                <label class="form-label">Fecha *</label>
+                <label class="form-label" for="{{ form.fecha.id_for_label }}">Fecha *</label>
                 {{ form.fecha }}
                 {% for error in form.fecha.errors %}
                     <div class="field-error">{{ error }}</div>
@@ -28,7 +33,7 @@
             </div>
 
             <div>
-                <label class="form-label">Tipo de Movimiento *</label>
+                <label class="form-label" for="{{ form.tipo.id_for_label }}">Tipo de ajuste *</label>
                 {{ form.tipo }}
                 {% for error in form.tipo.errors %}
                     <div class="field-error">{{ error }}</div>
@@ -36,16 +41,22 @@
             </div>
 
             <div>
-                <label class="form-label">Cantidad / Stock real *</label>
+                <label class="form-label" id="cantidad-label" for="{{ form.cantidad.id_for_label }}">Cantidad *</label>
                 {{ form.cantidad }}
                 {% for error in form.cantidad.errors %}
                     <div class="field-error">{{ error }}</div>
                 {% endfor %}
+                <small class="text-muted" id="cantidad-help">{{ form.cantidad.help_text }}</small>
             </div>
         </div>
 
+        <div class="stock-current-card" id="stock-current-card" aria-live="polite" hidden>
+            Stock Actual Registrado: <strong id="stock-current-value"></strong> u.
+            <span class="stock-difference" id="stock-difference" hidden></span>
+        </div>
+
         <div class="form-full-row">
-            <label class="form-label">Observaciones</label>
+            <label class="form-label" id="observacion-label" for="{{ form.observacion.id_for_label }}">Observaciones</label>
             {{ form.observacion }}
             {% if form.observacion.help_text %}
                 <small class="text-muted">{{ form.observacion.help_text }}</small>
@@ -55,10 +66,62 @@
             {% endfor %}
         </div>
 
-        <div style="display: flex; gap: 10px; margin-top: 24px;">
-            <button type="submit" class="btn btn-success">Guardar Movimiento</button>
+        <div class="form-actions form-actions-start">
+            <button type="submit" class="btn btn-success">Guardar Ajuste</button>
             <a href="{% url 'movimiento_crear' %}" class="btn btn-secondary">Limpiar</a>
         </div>
     </form>
 </div>
+
+{{ productos_stock|json_script:"producto-stock-data" }}
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const productoSelect = document.getElementById("id_producto");
+    const tipoSelect = document.getElementById("id_tipo");
+    const cantidadInput = document.getElementById("id_cantidad");
+    const observacionInput = document.getElementById("id_observacion");
+    const stockCard = document.getElementById("stock-current-card");
+    const stockValue = document.getElementById("stock-current-value");
+    const difference = document.getElementById("stock-difference");
+    const cantidadLabel = document.getElementById("cantidad-label");
+    const observacionLabel = document.getElementById("observacion-label");
+    const stockMap = JSON.parse(document.getElementById("producto-stock-data").textContent || "{}");
+    const countType = "CONTEO_FISICO";
+    const damageType = "ROTURA_MERMA";
+
+    function updateFormState() {
+        const selectedStock = stockMap[productoSelect.value];
+        const hasProduct = selectedStock !== undefined;
+        const isCount = tipoSelect.value === countType;
+        const isDamage = tipoSelect.value === damageType;
+
+        stockCard.hidden = !hasProduct;
+        difference.hidden = !hasProduct || !isCount || cantidadInput.value === "";
+        cantidadLabel.textContent = isCount
+            ? "Stock Real Contado en Estantería *"
+            : "Cantidad *";
+        observacionInput.required = isDamage;
+        observacionLabel.textContent = isDamage
+            ? "Observaciones / Motivo *"
+            : "Observaciones";
+
+        if (!hasProduct) {
+            return;
+        }
+
+        const stock = Number(selectedStock);
+        stockValue.textContent = String(stock);
+        if (isCount && cantidadInput.value !== "") {
+            const delta = Number(cantidadInput.value) - stock;
+            difference.textContent = `Diferencia: ${delta > 0 ? "+" : ""}${delta} u.`;
+        }
+    }
+
+    productoSelect.addEventListener("change", updateFormState);
+    tipoSelect.addEventListener("change", updateFormState);
+    cantidadInput.addEventListener("input", updateFormState);
+    updateFormState();
+});
+</script>
 {% endblock %}

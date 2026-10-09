@@ -50,6 +50,24 @@
     --color-row-danger-bg: #fef2f2;
     --color-row-warning-bg: #fffbeb;
     --color-row-normal-bg: #ffffff;
+
+    /* Variantes suaves y utilidades de superficie */
+    --color-soft-primary-bg: #e0f2fe;
+    --color-soft-primary-text: #0284c7;
+    --color-soft-primary-hover-bg: #bae6fd;
+    --color-soft-primary-hover-text: #0369a1;
+    --color-soft-success-bg: #dcfce7;
+    --color-soft-success-text: #15803d;
+    --color-soft-success-hover-bg: #bbf7d0;
+    --color-soft-success-hover-text: #166534;
+    --color-soft-danger-bg: #fee2e2;
+    --color-soft-danger-text: #b91c1c;
+    --color-soft-danger-hover-bg: #fecaca;
+    --color-soft-danger-hover-text: #991b1b;
+    --color-shadow: rgba(0, 0, 0, 0.1);
+    --color-backdrop: rgba(15, 23, 42, 0.6);
+    --color-page-hover-bg: #f8fafc;
+    --color-page-disabled-bg: #f1f5f9;
 }
 
 * { 
@@ -206,32 +224,34 @@ body {
 
 /* Soft Buttons para acciones de tabla */
 .btn-soft-primary {
-    background-color: #e0f2fe;
-    color: #0284c7;
+    background-color: var(--color-soft-primary-bg);
+    color: var(--color-soft-primary-text);
     border: none;
     font-weight: 600;
 }
-.btn-soft-primary:hover { background-color: #bae6fd; color: #0369a1; }
+.btn-soft-primary:hover { background-color: var(--color-soft-primary-hover-bg); color: var(--color-soft-primary-hover-text); }
 
 .btn-soft-success {
-    background-color: #dcfce7;
-    color: #15803d;
+    background-color: var(--color-soft-success-bg);
+    color: var(--color-soft-success-text);
     border: none;
     font-weight: 600;
 }
-.btn-soft-success:hover { background-color: #bbf7d0; color: #166534; }
+.btn-soft-success:hover { background-color: var(--color-soft-success-hover-bg); color: var(--color-soft-success-hover-text); }
 
 .btn-soft-danger {
-    background-color: #fee2e2;
-    color: #b91c1c;
+    background-color: var(--color-soft-danger-bg);
+    color: var(--color-soft-danger-text);
     border: none;
     font-weight: 600;
 }
-.btn-soft-danger:hover { background-color: #fecaca; color: #991b1b; }
+.btn-soft-danger:hover { background-color: var(--color-soft-danger-hover-bg); color: var(--color-soft-danger-hover-text); }
 
 .btn-sm {
-    padding: 5px 12px;
+    min-height: 32px;
+    padding: 5px 10px;
     font-size: 0.8rem;
+    white-space: nowrap;
 }
 
 /* Barra de Filtros */
@@ -251,6 +271,90 @@ body {
 .filter-input-sec {
     flex: 1;
     min-width: 180px;
+}
+
+.caja-filtros-card {
+    margin-top: 24px;
+}
+
+.caja-filtros {
+    display: flex;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+}
+
+.filtro-grupo {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+.filtro-grupo-periodo {
+    flex-direction: column;
+    align-items: flex-start;
+    flex-shrink: 0;
+}
+
+.filtro-grupo-periodo .btn {
+    padding-right: 8px;
+    padding-left: 8px;
+}
+
+.filtro-grupo-especifico {
+    flex: 0 1 auto;
+    min-width: 0;
+    flex-wrap: nowrap;
+}
+
+.filtro-controles {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.filtro-campo {
+    min-width: 0;
+}
+
+.filtro-campo .form-label,
+.filtro-grupo-tipo .form-label {
+    display: block;
+    margin-bottom: 4px;
+    white-space: nowrap;
+}
+
+.filtro-campo .form-control,
+.filtro-grupo-tipo .form-control {
+    display: block;
+    min-width: 0;
+    margin-top: 0;
+    padding: 7px 10px;
+}
+
+#caja-filtro-mes {
+    width: 115px;
+}
+
+#caja-filtro-anio {
+    width: 75px;
+}
+
+.filtro-grupo-tipo {
+    flex: 0 0 150px;
+    margin-left: auto;
+}
+
+.filtro-grupo-tipo .form-control {
+    width: 100%;
+}
+
+.filtro-aplicar {
+    min-height: 36px;
+    align-self: flex-end;
 }
 
 /* Tablas */
@@ -273,9 +377,42 @@ th, td {
 
 td.acciones-col {
     display: flex;
+    min-width: 140px;
     gap: 6px;
     align-items: center;
+    justify-content: flex-start;
+    white-space: nowrap;
     border-bottom: none;
+}
+
+tbody td {
+    vertical-align: middle;
+}
+
+.catalog-table {
+    table-layout: fixed;
+}
+
+.catalog-name-col { width: 23%; }
+.catalog-category-col { width: 14%; }
+.catalog-price-col { width: 13%; }
+.catalog-minimum-col { width: 10%; }
+.catalog-stock-col { width: 12%; }
+.catalog-status-col { width: 10%; }
+.catalog-actions-col { width: 18%; }
+
+.product-name,
+.product-description {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.product-description {
+    max-width: 100%;
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
 }
 
 th { 
@@ -347,6 +484,61 @@ tr.row-normal     { background-color: var(--color-row-normal-bg); }
 .field-error { color: var(--color-danger); font-size: 0.82rem; margin-top: 4px; }
 .form-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; }
 .form-card-container { max-width: 580px; margin: 20px auto; }
+.form-actions-start { justify-content: flex-start; gap: 10px; }
+.form-actions-center { justify-content: center; gap: 12px; }
+.form-actions-end { justify-content: flex-end; }
+.form-actions-spaced { gap: 16px; }
+.product-form-container { max-width: 600px; margin: 0 auto; }
+.product-stock-help { font-size: 0.85rem; margin-top: 4px; }
+.product-stock-notice { font-size: 0.85rem; }
+.sale-items-title { font-size: 1.05rem; }
+.sale-product-col { width: 40%; }
+.sale-stock-col,
+.sale-price-col,
+.sale-quantity-col { width: 15%; }
+.sale-subtotal-col { width: 10%; }
+.sale-delete-col { width: 5%; }
+.sale-total-row { background-color: var(--color-table-header-bg); font-weight: bold; }
+.sale-total-label { text-align: right; font-size: 1rem; }
+.sale-total-value { color: var(--color-btn-primary); font-size: 1.1rem; }
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+}
+.history-reference {
+    display: inline-block;
+    margin-top: 4px;
+    text-decoration: none;
+}
+
+.movement-adjustment-card {
+    max-width: 900px;
+    margin-right: auto;
+    margin-left: auto;
+}
+
+.movement-intro {
+    margin: -8px 0 20px;
+}
+
+.stock-current-card {
+    margin-bottom: 16px;
+    padding: 12px 16px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background-color: var(--color-table-header-bg);
+}
+
+.stock-difference {
+    display: block;
+    margin-top: 4px;
+    color: var(--color-btn-primary);
+    font-weight: 600;
+}
 
 dialog#modalProducto,
 dialog#modalCategoria {
@@ -356,7 +548,7 @@ dialog#modalCategoria {
     border: 1px solid var(--color-border);
     border-radius: 12px;
     padding: 24px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 10px 25px var(--color-shadow);
     width: min(550px, calc(100vw - 32px));
     max-height: calc(100dvh - 32px);
     overflow-y: auto;
@@ -365,7 +557,7 @@ dialog#modalCategoria {
 
 dialog#modalProducto::backdrop,
 dialog#modalCategoria::backdrop {
-    background: rgba(15, 23, 42, 0.6);
+    background: var(--color-backdrop);
     -webkit-backdrop-filter: blur(3px);
     backdrop-filter: blur(2px);
 }
@@ -437,12 +629,12 @@ dialog#modalCategoria::backdrop {
 .page-link:hover {
     border-color: var(--color-btn-primary);
     color: var(--color-btn-primary);
-    background-color: #f8fafc;
+    background-color: var(--color-page-hover-bg);
 }
 
 .page-item.active .page-link {
     background-color: var(--color-btn-primary);
-    color: #ffffff;
+    color: var(--color-btn-text);
     border-color: var(--color-btn-primary);
     cursor: default;
 }
@@ -452,7 +644,7 @@ dialog#modalCategoria::backdrop {
     opacity: 0.5;
     pointer-events: none;
     cursor: not-allowed;
-    background-color: #f1f5f9;
+    background-color: var(--color-page-disabled-bg);
 }
 
 /* Utility classes for migrated inline styles */
@@ -468,6 +660,20 @@ dialog#modalCategoria::backdrop {
 .text-success { color: var(--color-success); }
 .text-muted-aux { color: var(--color-text-muted); margin: 0 4px; }
 .text-right { text-align: right; }
+
+@media (max-width: 768px) {
+    .caja-filtros {
+        align-items: flex-start;
+    }
+
+    .filtro-controles {
+        flex-wrap: wrap;
+    }
+
+    .filtro-campo {
+        flex: 1 1 100px;
+    }
+}
 
 /* Cuadrícula de resumen (ej. dashboard de caja) */
 .summary-grid {
@@ -492,7 +698,7 @@ dialog#modalCategoria::backdrop {
     text-decoration: underline;
 }
 
-/* Remito PDF: xhtml2pdf no procesa variables CSS; los colores quedan centralizados aquí. */
+/* xhtml2pdf no procesa variables CSS; conservar su paleta compatible aquí. */
 @page {
     size: A4 portrait;
     margin: 2cm;

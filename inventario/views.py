@@ -9,7 +9,7 @@ from django.contrib.staticfiles import finders
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import connection, transaction
-from django.db.models import F, Q, Count, Sum
+from django.db.models import F, Q, Count, Min, Sum
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
@@ -323,9 +323,7 @@ def proveedor_desactivar(request, pk):
 # --- MOVIMIENTOS ---
 @transaction.atomic
 def movimiento_crear(request):
-    """Vista unificada para registrar Entrada, Salida o Ajuste."""
-    
-    """Vista unificada para registrar Entrada, Salida o Ajuste."""
+    """Registra ajustes manuales de inventario con auditoría."""
     producto_id_param = request.GET.get("producto")
 
     if request.method == "POST":
@@ -344,25 +342,7 @@ def movimiento_crear(request):
             usuario = request.user if request.user.is_authenticated else None
 
             try:
-                if tipo == "ENTRADA":
-                    registrar_entrada(
-                        producto.id,
-                        cantidad,
-                        observacion,
-                        fecha=fecha_completa,
-                        usuario=usuario,
-                    )
-                    messages.success(request, f"Entrada registrada: +{cantidad} u. de '{producto.nombre}'.")
-                elif tipo == "SALIDA":
-                    registrar_salida(
-                        producto.id,
-                        cantidad,
-                        observacion,
-                        fecha=fecha_completa,
-                        usuario=usuario,
-                    )
-                    messages.success(request, f"Salida registrada: -{cantidad} u. de '{producto.nombre}'.")
-                elif tipo == "AJUSTE":
+                if tipo == MovimientoUnificadoForm.TIPO_CONTEO_FISICO:
                     registrar_ajuste(
                         producto.id,
                         cantidad,
@@ -370,7 +350,34 @@ def movimiento_crear(request):
                         fecha=fecha_completa,
                         usuario=usuario,
                     )
-                    messages.success(request, f"Stock de '{producto.nombre}' ajustado a {cantidad} u.")
+                    messages.success(
+                        request,
+                        f"Stock de '{producto.nombre}' ajustado al conteo de {cantidad} u.",
+                    )
+                elif tipo == MovimientoUnificadoForm.TIPO_ROTURA_MERMA:
+                    registrar_salida(
+                        producto.id,
+                        cantidad,
+                        f"{MovimientoUnificadoForm.PREFIJO_ROTURA_MERMA}{observacion}",
+                        fecha=fecha_completa,
+                        usuario=usuario,
+                    )
+                    messages.success(
+                        request,
+                        f"Baja por rotura o merma registrada: -{cantidad} u. de '{producto.nombre}'.",
+                    )
+                elif tipo == MovimientoUnificadoForm.TIPO_INGRESO_EXTRAORDINARIO:
+                    registrar_entrada(
+                        producto.id,
+                        cantidad,
+                        observacion,
+                        fecha=fecha_completa,
+                        usuario=usuario,
+                    )
+                    messages.success(
+                        request,
+                        f"Ingreso extraordinario registrado: +{cantidad} u. de '{producto.nombre}'.",
+                    )
 
                 return redirect("movimiento_historial")
 
@@ -394,7 +401,14 @@ def movimiento_crear(request):
             initial_data["tipo"] = tipo_param
         form = MovimientoUnificadoForm(initial=initial_data)
 
-    return render(request, "inventario/movimiento_form.html", {"form": form})
+    productos_stock = dict(
+        Producto.objects.filter(activo=True).values_list("id", "stock_actual")
+    )
+    return render(
+        request,
+        "inventario/movimiento_form.html",
+        {"form": form, "productos_stock": productos_stock},
+    )
 
 
 def movimiento_historial(request):
@@ -794,7 +808,7 @@ def orden_compra_cancelar(request, pk):
 
 @transaction.atomic
 def export_csv(request):
-    """Export the product list as CSV respecting current filters and ordering."""
+    """Export an inventory audit and replenishment worksheet as Excel-friendly CSV."""
     query = request.GET.get("q", "").strip()
     categoria_id = request.GET.get("categoria", "").strip()
     solo_stock_bajo = request.GET.get("stock_bajo") == "1"
@@ -819,21 +833,33 @@ def export_csv(request):
         productos_qs = productos_qs.filter(categoria_id=categoria_id)
     if solo_stock_bajo:
         productos_qs = productos_qs.filter(stock_actual__lte=F("stock_minimo"))
-    response = HttpResponse(content_type="text/csv")
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = "attachment; filename=productos.csv"
-    writer = csv.writer(response)
-    writer.writerow(["ID", "Nombre", "Descripción", "Categoría", "Precio Unitario de Venta", "Stock Mínimo", "Stock Actual", "Estado"])
+    response.write("\ufeff")
+    writer = csv.writer(response, delimiter=";")
+    writer.writerow([
+        "ID",
+        "Categoría",
+        "Producto",
+        "Stock Actual",
+        "Stock Mínimo",
+        "Estado",
+        "Precio Unitario ($)",
+        "Valorización de Stock ($)",
+        "Conteo Físico (Verificación)",
+    ])
     for p in productos_qs:
         estado = "Sin Stock" if p.stock_actual == 0 else ("Stock Bajo" if p.stock_bajo else "Normal")
         writer.writerow([
             p.id,
-            p.nombre,
-            p.descripcion,
             p.categoria.nombre if p.categoria else "",
-            f"${p.precio_unitario:.2f}",
-            p.stock_minimo,
+            p.nombre,
             p.stock_actual,
+            p.stock_minimo,
             estado,
+            f"{p.precio_unitario:.2f}",
+            f"{p.precio_unitario * p.stock_actual:.2f}",
+            "",
         ])
     return response
 
@@ -843,7 +869,60 @@ def caja_dashboard(request):
     """Dashboard de caja con saldo calculado dinámicamente."""
     from decimal import Decimal
 
-    agregados = MovimientoCaja.objects.aggregate(
+    periodo = (request.GET.get("periodo") or "todo").strip().lower()
+    mes = (request.GET.get("mes") or "").strip()
+    anio = (request.GET.get("anio") or "").strip()
+    tipo = (request.GET.get("tipo") or "TODOS").strip().upper()
+
+    valid_periodos = {"todo", "mes_actual", "anio_actual", "mes_especifico"}
+    if periodo not in valid_periodos:
+        periodo = "todo"
+
+    if tipo not in {"TODOS", "INGRESO", "EGRESO"}:
+        tipo = "TODOS"
+
+    mes_num = None
+    anio_num = None
+    hoy = timezone.localdate()
+    meses = [
+        (1, "Enero"), (2, "Febrero"), (3, "Marzo"), (4, "Abril"),
+        (5, "Mayo"), (6, "Junio"), (7, "Julio"), (8, "Agosto"),
+        (9, "Septiembre"), (10, "Octubre"), (11, "Noviembre"), (12, "Diciembre"),
+    ]
+    primer_movimiento = MovimientoCaja.objects.aggregate(primer_fecha=Min("fecha"))["primer_fecha"]
+    anio_inicial = min(primer_movimiento.year, hoy.year) if primer_movimiento else hoy.year - 4
+    anios = list(range(hoy.year, anio_inicial - 1, -1))
+
+    if periodo == "mes_especifico":
+        try:
+            mes_num = int(mes)
+            anio_num = int(anio)
+        except (TypeError, ValueError):
+            periodo = "todo"
+        else:
+            if not (1 <= mes_num <= 12):
+                periodo = "todo"
+
+    queryset_periodo = MovimientoCaja.objects.select_related("pedido", "orden_compra")
+    if periodo != "todo":
+        if periodo == "mes_actual":
+            inicio = timezone.make_aware(datetime(hoy.year, hoy.month, 1, 0, 0, 0), timezone.get_current_timezone())
+            if hoy.month == 12:
+                fin = timezone.make_aware(datetime(hoy.year + 1, 1, 1, 0, 0, 0), timezone.get_current_timezone())
+            else:
+                fin = timezone.make_aware(datetime(hoy.year, hoy.month + 1, 1, 0, 0, 0), timezone.get_current_timezone())
+        elif periodo == "anio_actual":
+            inicio = timezone.make_aware(datetime(hoy.year, 1, 1, 0, 0, 0), timezone.get_current_timezone())
+            fin = timezone.make_aware(datetime(hoy.year + 1, 1, 1, 0, 0, 0), timezone.get_current_timezone())
+        else:
+            inicio = timezone.make_aware(datetime(anio_num, mes_num, 1, 0, 0, 0), timezone.get_current_timezone())
+            if mes_num == 12:
+                fin = timezone.make_aware(datetime(anio_num + 1, 1, 1, 0, 0, 0), timezone.get_current_timezone())
+            else:
+                fin = timezone.make_aware(datetime(anio_num, mes_num + 1, 1, 0, 0, 0), timezone.get_current_timezone())
+        queryset_periodo = queryset_periodo.filter(fecha__gte=inicio, fecha__lt=fin)
+
+    agregados = queryset_periodo.aggregate(
         total_ingresos=Sum("monto", filter=Q(tipo="INGRESO")),
         total_egresos=Sum("monto", filter=Q(tipo="EGRESO")),
     )
@@ -852,9 +931,11 @@ def caja_dashboard(request):
     total_egresos = agregados["total_egresos"] or Decimal("0.00")
     saldo = total_ingresos - total_egresos
 
-    movimientos = MovimientoCaja.objects.select_related("pedido").all()
+    queryset_tabla = queryset_periodo
+    if tipo in {"INGRESO", "EGRESO"}:
+        queryset_tabla = queryset_tabla.filter(tipo=tipo)
 
-    paginator = Paginator(movimientos, 20)
+    paginator = Paginator(queryset_tabla.order_by("-fecha", "-id"), 20)
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
 
@@ -867,6 +948,13 @@ def caja_dashboard(request):
             "saldo": saldo,
             "movimientos": page_obj,
             "page_obj": page_obj,
+            "periodo": periodo,
+            "mes": str(mes_num) if mes_num is not None else "",
+            "anio": str(anio_num) if anio_num is not None else "",
+            "tipo": tipo,
+            "mostrar_saldo_periodo": periodo != "todo",
+            "meses": meses,
+            "anios": anios,
         },
     )
 

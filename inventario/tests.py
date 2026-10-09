@@ -372,7 +372,7 @@ class MovimientoViewsAuditoriaTest(TestCase):
         url = reverse("movimiento_crear")
         data = {
             "producto": self.producto.id,
-            "tipo": "ENTRADA",
+            "tipo": MovimientoUnificadoForm.TIPO_INGRESO_EXTRAORDINARIO,
             "cantidad": 12,
             "fecha": "2026-09-16",
             "observacion": "Ingreso por recepción de mercadería",
@@ -385,6 +385,62 @@ class MovimientoViewsAuditoriaTest(TestCase):
         self.assertEqual(movimiento.stock_anterior, 5)
         self.assertEqual(movimiento.stock_posterior, 17)
 
+    def test_ajuste_por_conteo_fisico_actualiza_stock_con_auditoria(self):
+        response = self.client.post(
+            reverse("movimiento_crear"),
+            {
+                "producto": self.producto.id,
+                "tipo": MovimientoUnificadoForm.TIPO_CONTEO_FISICO,
+                "cantidad": 8,
+                "fecha": "2026-09-16",
+                "observacion": "Conteo de depósito",
+            },
+        )
+
+        self.assertRedirects(response, reverse("movimiento_historial"))
+        movimiento = Movimiento.objects.get(producto=self.producto)
+        self.assertEqual(movimiento.tipo, Movimiento.TipoMovimiento.AJUSTE)
+        self.assertEqual(movimiento.stock_anterior, 5)
+        self.assertEqual(movimiento.stock_posterior, 8)
+        self.assertIn("Conteo de depósito", movimiento.observacion)
+
+    def test_baja_por_merma_exige_motivo_en_el_backend(self):
+        response = self.client.post(
+            reverse("movimiento_crear"),
+            {
+                "producto": self.producto.id,
+                "tipo": MovimientoUnificadoForm.TIPO_ROTURA_MERMA,
+                "cantidad": 2,
+                "fecha": "2026-09-16",
+                "observacion": "   ",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "El motivo es obligatorio")
+        self.assertFalse(Movimiento.objects.filter(producto=self.producto).exists())
+        self.producto.refresh_from_db()
+        self.assertEqual(self.producto.stock_actual, 5)
+
+    def test_baja_por_merma_registra_egreso_auditable(self):
+        response = self.client.post(
+            reverse("movimiento_crear"),
+            {
+                "producto": self.producto.id,
+                "tipo": MovimientoUnificadoForm.TIPO_ROTURA_MERMA,
+                "cantidad": 2,
+                "fecha": "2026-09-16",
+                "observacion": "Envase dañado",
+            },
+        )
+
+        self.assertRedirects(response, reverse("movimiento_historial"))
+        movimiento = Movimiento.objects.get(producto=self.producto)
+        self.assertEqual(movimiento.tipo, Movimiento.TipoMovimiento.SALIDA)
+        self.assertEqual(movimiento.stock_anterior, 5)
+        self.assertEqual(movimiento.stock_posterior, 3)
+        self.assertEqual(movimiento.observacion, "Rotura/merma: Envase dañado")
+
     def test_movimiento_crear_usa_hora_local_de_argentina(self):
         fixed_now = datetime.datetime(
             2026, 10, 7, 2, 15, tzinfo=datetime.timezone.utc
@@ -395,7 +451,7 @@ class MovimientoViewsAuditoriaTest(TestCase):
                 reverse("movimiento_crear"),
                 {
                     "producto": self.producto.id,
-                    "tipo": "ENTRADA",
+                    "tipo": MovimientoUnificadoForm.TIPO_INGRESO_EXTRAORDINARIO,
                     "cantidad": 1,
                     "fecha": "2026-10-06",
                     "observacion": "Prueba horaria",
@@ -586,7 +642,7 @@ class MovimientosReglasNegocioTest(TestCase):
     def test_salida_mayor_al_stock_rechazada_en_formulario(self):
         form_data = {
             "producto": self.prod_a.id,
-            "tipo": Movimiento.TipoMovimiento.SALIDA,
+            "tipo": MovimientoUnificadoForm.TIPO_ROTURA_MERMA,
             "cantidad": 15,
             "fecha": timezone.now().date(),
             "observacion": "Intento de sobre-egreso",
@@ -622,7 +678,7 @@ class MovimientosReglasNegocioTest(TestCase):
         form_zero = MovimientoUnificadoForm(
             data={
                 "producto": self.prod_a.id,
-                "tipo": Movimiento.TipoMovimiento.ENTRADA,
+                "tipo": MovimientoUnificadoForm.TIPO_INGRESO_EXTRAORDINARIO,
                 "cantidad": 0,
                 "fecha": timezone.now().date(),
             }
@@ -634,9 +690,10 @@ class MovimientosReglasNegocioTest(TestCase):
         form_sal_zero = MovimientoUnificadoForm(
             data={
                 "producto": self.prod_a.id,
-                "tipo": Movimiento.TipoMovimiento.SALIDA,
+                "tipo": MovimientoUnificadoForm.TIPO_ROTURA_MERMA,
                 "cantidad": 0,
                 "fecha": timezone.now().date(),
+                "observacion": "Motivo de prueba",
             }
         )
         self.assertFalse(form_sal_zero.is_valid())
@@ -646,7 +703,7 @@ class MovimientosReglasNegocioTest(TestCase):
         form_neg = MovimientoUnificadoForm(
             data={
                 "producto": self.prod_a.id,
-                "tipo": Movimiento.TipoMovimiento.ENTRADA,
+                "tipo": MovimientoUnificadoForm.TIPO_INGRESO_EXTRAORDINARIO,
                 "cantidad": -1,
                 "fecha": timezone.now().date(),
             }
@@ -712,7 +769,7 @@ class MovimientosReglasNegocioTest(TestCase):
         fecha_pasada = datetime.date(2024, 3, 15)
         data = {
             "producto": self.prod_a.id,
-            "tipo": "ENTRADA",
+            "tipo": MovimientoUnificadoForm.TIPO_INGRESO_EXTRAORDINARIO,
             "cantidad": 7,
             "fecha": fecha_pasada.strftime("%Y-%m-%d"),
             "observacion": "Carga de remito antiguo",
@@ -722,8 +779,8 @@ class MovimientosReglasNegocioTest(TestCase):
 
         movimiento = Movimiento.objects.filter(producto=self.prod_a, observacion="Carga de remito antiguo").first()
         self.assertIsNotNone(movimiento)
-        # La fecha en el modelo debe coincidir exactamente con el día indicado
-        self.assertEqual(movimiento.fecha.date(), fecha_pasada)
+        # Compare in the configured local timezone; the stored instant is UTC.
+        self.assertEqual(timezone.localtime(movimiento.fecha).date(), fecha_pasada)
         self.assertEqual(movimiento.cantidad, 7)
         self.assertEqual(movimiento.tipo, Movimiento.TipoMovimiento.ENTRADA)
 
@@ -737,14 +794,20 @@ class MovimientoCrearInitialDataTest(TestCase):
         self.client.login(username='tester', password='testpass')
 
     def test_get_initial_data_prepopulates_form(self):
-        url = reverse('movimiento_crear') + f'?producto={self.producto.id}&tipo=ENTRADA'
+        url = reverse('movimiento_crear') + (
+            f'?producto={self.producto.id}&tipo='
+            f'{MovimientoUnificadoForm.TIPO_INGRESO_EXTRAORDINARIO}'
+        )
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
         # product selected
         self.assertIn(f'value="{self.producto.id}" selected', content)
         # tipo selected
-        self.assertIn('value="ENTRADA" selected', content)
+        self.assertIn(
+            f'value="{MovimientoUnificadoForm.TIPO_INGRESO_EXTRAORDINARIO}" selected',
+            content,
+        )
 
 class CategoriaViewsTest(TestCase):
     def setUp(self):
@@ -2252,6 +2315,178 @@ class CajaFeatureTest(TestCase):
         )
         self.assertNotRegex(response.content.decode(), r"\bstyle\s*=")
 
+    def test_dashboard_filtra_por_mes_actual_y_recalcula_totales(self):
+        ahora = timezone.now()
+        mes_anterior = ahora - datetime.timedelta(days=40)
+
+        MovimientoCaja.objects.create(
+            tipo=MovimientoCaja.TipoMovimientoCaja.INGRESO,
+            monto=Decimal("100.00"),
+            concepto="Ingreso actual",
+            fecha=ahora,
+        )
+        MovimientoCaja.objects.create(
+            tipo=MovimientoCaja.TipoMovimientoCaja.EGRESO,
+            monto=Decimal("30.00"),
+            concepto="Egreso actual",
+            fecha=ahora,
+        )
+        MovimientoCaja.objects.create(
+            tipo=MovimientoCaja.TipoMovimientoCaja.INGRESO,
+            monto=Decimal("500.00"),
+            concepto="Ingreso vencido",
+            fecha=mes_anterior,
+        )
+        MovimientoCaja.objects.create(
+            tipo=MovimientoCaja.TipoMovimientoCaja.EGRESO,
+            monto=Decimal("200.00"),
+            concepto="Egreso vencido",
+            fecha=mes_anterior,
+        )
+
+        response = self.client.get(reverse("caja_dashboard"), {"periodo": "mes_actual"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["total_ingresos"], Decimal("100.00"))
+        self.assertEqual(response.context["total_egresos"], Decimal("30.00"))
+        self.assertEqual(response.context["saldo"], Decimal("70.00"))
+        self.assertTrue(response.context["mostrar_saldo_periodo"])
+
+    def test_dashboard_filtra_por_mes_y_anio_especificos_y_por_tipo(self):
+        ahora = timezone.now()
+        mes_anterior = ahora - datetime.timedelta(days=40)
+
+        MovimientoCaja.objects.create(
+            tipo=MovimientoCaja.TipoMovimientoCaja.INGRESO,
+            monto=Decimal("150.00"),
+            concepto="Ingreso mes anterior",
+            fecha=mes_anterior,
+        )
+        MovimientoCaja.objects.create(
+            tipo=MovimientoCaja.TipoMovimientoCaja.EGRESO,
+            monto=Decimal("50.00"),
+            concepto="Egreso mes anterior",
+            fecha=mes_anterior,
+        )
+        MovimientoCaja.objects.create(
+            tipo=MovimientoCaja.TipoMovimientoCaja.INGRESO,
+            monto=Decimal("80.00"),
+            concepto="Ingreso de este año",
+            fecha=ahora,
+        )
+        MovimientoCaja.objects.create(
+            tipo=MovimientoCaja.TipoMovimientoCaja.EGRESO,
+            monto=Decimal("20.00"),
+            concepto="Egreso de este año",
+            fecha=ahora,
+        )
+
+        response = self.client.get(
+            reverse("caja_dashboard"),
+            {"periodo": "mes_especifico", "mes": mes_anterior.month, "anio": mes_anterior.year, "tipo": "INGRESO"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["total_ingresos"], Decimal("150.00"))
+        self.assertEqual(response.context["total_egresos"], Decimal("50.00"))
+        self.assertEqual(response.context["saldo"], Decimal("100.00"))
+        self.assertEqual(len(response.context["movimientos"]), 1)
+        self.assertEqual(response.context["tipo"], "INGRESO")
+
+    def test_dashboard_filtra_por_tipo_sin_alterar_agregados(self):
+        ahora = timezone.now()
+        MovimientoCaja.objects.create(
+            tipo=MovimientoCaja.TipoMovimientoCaja.INGRESO,
+            monto=Decimal("90.00"),
+            concepto="Ingreso 1",
+            fecha=ahora,
+        )
+        MovimientoCaja.objects.create(
+            tipo=MovimientoCaja.TipoMovimientoCaja.INGRESO,
+            monto=Decimal("10.00"),
+            concepto="Ingreso 2",
+            fecha=ahora,
+        )
+        MovimientoCaja.objects.create(
+            tipo=MovimientoCaja.TipoMovimientoCaja.EGRESO,
+            monto=Decimal("40.00"),
+            concepto="Egreso 1",
+            fecha=ahora,
+        )
+
+        response = self.client.get(reverse("caja_dashboard"), {"periodo": "anio_actual", "tipo": "INGRESO"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["total_ingresos"], Decimal("100.00"))
+        self.assertEqual(response.context["total_egresos"], Decimal("40.00"))
+        self.assertEqual(response.context["saldo"], Decimal("60.00"))
+        self.assertEqual(len(response.context["movimientos"]), 2)
+
+    def test_dashboard_filtra_egresos_y_conserva_agregados_combinados(self):
+        ahora = timezone.now()
+        MovimientoCaja.objects.create(
+            tipo=MovimientoCaja.TipoMovimientoCaja.INGRESO,
+            monto=Decimal("100.00"),
+            concepto="Ingreso incluido en saldo",
+            fecha=ahora,
+        )
+        MovimientoCaja.objects.create(
+            tipo=MovimientoCaja.TipoMovimientoCaja.EGRESO,
+            monto=Decimal("40.00"),
+            concepto="Primer egreso",
+            fecha=ahora,
+        )
+        MovimientoCaja.objects.create(
+            tipo=MovimientoCaja.TipoMovimientoCaja.EGRESO,
+            monto=Decimal("10.00"),
+            concepto="Segundo egreso",
+            fecha=ahora,
+        )
+
+        response = self.client.get(
+            reverse("caja_dashboard"),
+            {"periodo": "anio_actual", "tipo": "EGRESO"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["total_ingresos"], Decimal("100.00"))
+        self.assertEqual(response.context["total_egresos"], Decimal("50.00"))
+        self.assertEqual(response.context["saldo"], Decimal("50.00"))
+        movimientos = list(response.context["movimientos"])
+        self.assertEqual(len(movimientos), 2)
+        self.assertTrue(all(movimiento.tipo == MovimientoCaja.TipoMovimientoCaja.EGRESO for movimiento in movimientos))
+        self.assertEqual(
+            {movimiento.concepto for movimiento in movimientos},
+            {"Primer egreso", "Segundo egreso"},
+        )
+
+    def test_dashboard_ignora_parametros_invalidos_y_muestra_titulo_periodo(self):
+        ahora = timezone.now()
+        MovimientoCaja.objects.create(
+            tipo=MovimientoCaja.TipoMovimientoCaja.INGRESO,
+            monto=Decimal("55.00"),
+            concepto="Ingreso válido",
+            fecha=ahora,
+        )
+
+        response = self.client.get(
+            reverse("caja_dashboard"),
+            {"periodo": "mes_especifico", "mes": "13", "anio": "abc", "tipo": "XYZ"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["periodo"], "todo")
+        self.assertEqual(response.context["tipo"], "TODOS")
+        self.assertEqual(response.context["total_ingresos"], Decimal("55.00"))
+        self.assertFalse(response.context["mostrar_saldo_periodo"])
+        self.assertContains(response, "Saldo actual")
+
+    def test_dashboard_preserva_tipo_en_links_de_periodo(self):
+        response = self.client.get(reverse("caja_dashboard"), {"periodo": "mes_actual", "tipo": "INGRESO"})
+
+        self.assertContains(response, "periodo=mes_actual")
+        self.assertContains(response, "tipo=INGRESO")
+
     def test_egreso_manual_valida_y_registra_el_concepto(self):
         form = EgresoCajaForm(data={"monto": "0", "concepto": "Gasto inválido"})
         self.assertFalse(form.is_valid())
@@ -2340,7 +2575,7 @@ class ProductoPrecioUnitarioTest(TestCase):
         self.assertEqual(prod.precio_unitario, Decimal("145.50"))
 
     def test_export_csv_incluye_precio_unitario(self):
-        Producto.objects.create(
+        producto = Producto.objects.create(
             nombre="Desodorante Ambiental",
             categoria=self.cat,
             precio_unitario=Decimal("450.00"),
@@ -2349,6 +2584,48 @@ class ProductoPrecioUnitarioTest(TestCase):
         )
         response = self.client.get(reverse("export_csv"))
         self.assertEqual(response.status_code, 200)
-        content = response.content.decode("utf-8")
-        self.assertIn("Precio Unitario de Venta", content)
-        self.assertIn("$450.00", content)
+        self.assertTrue(response.content.startswith(b"\xef\xbb\xbf"))
+        content = response.content.decode("utf-8-sig")
+        self.assertIn("ID;Categoría;Producto;Stock Actual;Stock Mínimo;Estado;", content)
+        self.assertIn("Precio Unitario ($);Valorización de Stock ($);", content)
+        self.assertIn(
+            f"{producto.id};{self.cat.nombre};{producto.nombre};8;2;Normal;450.00;3600.00;",
+            content,
+        )
+
+    def test_export_csv_respeta_filtros_de_busqueda_categoria_y_stock_bajo(self):
+        coincidencia = Producto.objects.create(
+            nombre="Limpiador multiuso",
+            categoria=self.cat,
+            precio_unitario=Decimal("120.00"),
+            stock_actual=1,
+            stock_minimo=4,
+        )
+        otra_categoria = Categoria.objects.create(nombre="Papel")
+        Producto.objects.create(
+            nombre="Limpiador multiuso papel",
+            categoria=otra_categoria,
+            precio_unitario=Decimal("90.00"),
+            stock_actual=1,
+            stock_minimo=4,
+        )
+        Producto.objects.create(
+            nombre="Limpiador con stock normal",
+            categoria=self.cat,
+            precio_unitario=Decimal("80.00"),
+            stock_actual=8,
+            stock_minimo=4,
+        )
+
+        response = self.client.get(
+            reverse("export_csv"),
+            {"q": "multiuso", "categoria": self.cat.id, "stock_bajo": "1"},
+        )
+
+        content = response.content.decode("utf-8-sig")
+        self.assertIn(
+            f";{coincidencia.nombre};1;4;Stock Bajo;120.00;120.00;",
+            content,
+        )
+        self.assertNotIn("Limpiador multiuso papel", content)
+        self.assertNotIn("Limpiador con stock normal", content)

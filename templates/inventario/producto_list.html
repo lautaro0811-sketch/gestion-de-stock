@@ -11,7 +11,7 @@
         <h2 class="card-title">Stock Actual</h2>
 
         <div class="action-bar">
-            <a href="{% url 'movimiento_crear' %}" class="btn btn-primary">Registrar Operación</a>
+            <a href="{% url 'movimiento_crear' %}" class="btn btn-primary">Ajuste Manual de Inventario</a>
             <button type="button" class="btn btn-success" onclick="document.getElementById('modalProducto').showModal()">+ Nuevo Producto</button>
             <button type="button" class="btn btn-secondary" onclick="document.getElementById('modalCategoria').showModal()">+ Nueva Categoría</button>
             <a href="{% url 'producto_list' %}?stock_bajo=1" class="btn btn-warning">Solo Alertas</a>
@@ -48,7 +48,16 @@
 
     <!-- Tabla con filas coloreadas según stock -->
     <div class="table-responsive">
-        <table>
+        <table class="catalog-table">
+            <colgroup>
+                <col class="catalog-name-col">
+                <col class="catalog-category-col">
+                <col class="catalog-price-col">
+                <col class="catalog-minimum-col">
+                <col class="catalog-stock-col">
+                <col class="catalog-status-col">
+                <col class="catalog-actions-col">
+            </colgroup>
             <thead>
                 <tr>
                     <th>
@@ -88,9 +97,9 @@
                 {% for p in productos %}
                 <tr class="{% if p.stock_actual == 0 %}row-sin-stock{% elif p.stock_bajo %}row-stock-bajo{% else %}row-normal{% endif %}">
                     <td>
-                        <strong>{{ p.nombre }}</strong>
+                        <strong class="product-name">{{ p.nombre }}</strong>
                         {% if p.descripcion %}
-                            <div class="form-desc">{{ p.descripcion }}</div>
+                            <div class="product-description" title="{{ p.descripcion }}">{{ p.descripcion }}</div>
                         {% endif %}
                     </td>
                     <td>{{ p.categoria.nombre|default:"Sin categoría" }}</td>
@@ -108,7 +117,7 @@
                     </td>
                     <td class="acciones-col">
                         <a href="{% url 'producto_editar' p.id %}" class="btn btn-soft-primary btn-sm">Ver / Editar</a>
-                        <a href="{% url 'movimiento_crear' %}?producto={{ p.id }}&tipo=ENTRADA" class="btn btn-soft-success btn-sm" title="Registrar una entrada por ajuste manual; las compras se registran en Órdenes de Compra">+ Ent</a>
+                        <a href="{% url 'movimiento_crear' %}?producto={{ p.id }}&tipo=INGRESO_EXTRAORDINARIO" class="btn btn-soft-success btn-sm" title="Registrar un ingreso extraordinario; las compras se registran en Órdenes de Compra">+ Ent</a>
                         <a href="{% url 'pedido_crear' %}?producto={{ p.id }}" class="btn btn-soft-danger btn-sm">- Sal</a>
                     </td>
                 </tr>

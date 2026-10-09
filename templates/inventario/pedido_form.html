@@ -45,24 +45,24 @@
         </div>
 
         <!-- Tabla Dinámica de Ítems -->
-        <div class="card-header-flex" style="margin-top: 24px;">
-            <h3 class="card-title" style="font-size: 1.05rem;">Productos de la Venta</h3>
+        <div class="card-header-flex mt-24">
+            <h3 class="card-title sale-items-title">Productos de la Venta</h3>
             <button type="button" id="btn-add-item" class="btn btn-primary btn-sm">+ Agregar Producto</button>
         </div>
 
         {{ formset.management_form }}
         {{ formset.non_form_errors }}
 
-        <div class="table-responsive" style="margin-bottom: 20px;">
+        <div class="table-responsive mb-20">
             <table id="items-table">
                 <thead>
                     <tr>
-                        <th style="width:40%;">Producto</th>
-                        <th style="width:15%;">Stock Disp.</th>
-                        <th style="width:15%;">Precio unitario de venta</th>
-                        <th style="width:15%;">Cantidad</th>
-                        <th style="width:10%;">Subtotal</th>
-                        <th style="width:5%;"></th>
+                        <th class="sale-product-col">Producto</th>
+                        <th class="sale-stock-col">Stock Disp.</th>
+                        <th class="sale-price-col">Precio unitario de venta</th>
+                        <th class="sale-quantity-col">Cantidad</th>
+                        <th class="sale-subtotal-col">Subtotal</th>
+                        <th class="sale-delete-col"></th>
                     </tr>
                 </thead>
                 <tbody id="items-tbody">
@@ -82,7 +82,7 @@
                         <td><strong class="subtotal-display">$0.00</strong></td>
                         <td>
                             {% if formset.can_delete %}
-                                <span style="display:none;">{{ item_form.DELETE }}</span>
+                                <span class="visually-hidden">{{ item_form.DELETE }}</span>
                             {% endif %}
                             <button type="button" class="btn btn-danger btn-sm btn-remove-row" title="Eliminar fila">&times;</button>
                         </td>
@@ -90,9 +90,9 @@
                     {% endfor %}
                 </tbody>
                 <tfoot>
-                    <tr style="background-color: var(--color-table-header-bg); font-weight:bold;">
-                        <td colspan="4" style="text-align:right; font-size:1rem;">TOTAL:</td>
-                        <td colspan="2" style="font-size:1.1rem; color: var(--color-btn-primary);">
+                    <tr class="sale-total-row">
+                        <td colspan="4" class="sale-total-label">TOTAL:</td>
+                        <td colspan="2" class="sale-total-value">
                             <span id="pedido-total-display">$0.00</span>
                         </td>
                     </tr>

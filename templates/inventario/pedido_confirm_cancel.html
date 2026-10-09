@@ -15,7 +15,7 @@
 
         <form method="post">
             {% csrf_token %}
-            <div class="form-actions" style="justify-content: center; gap: 16px;">
+            <div class="form-actions form-actions-center form-actions-spaced">
                 <a href="{% url 'pedido_detalle' pedido.id %}" class="btn btn-secondary">No, volver al detalle</a>
                 <button type="submit" class="btn btn-danger">Sí, cancelar pedido</button>
             </div>
