@@ -59,6 +59,9 @@
 
             <div class="form-actions">
                 <a href="{% url 'producto_list' %}" class="btn btn-secondary">Cancelar</a>
+                {% if producto %}
+                <a href="{% url 'producto_desactivar' producto.id %}" class="btn btn-danger">Desactivar producto</a>
+                {% endif %}
                 <button type="submit" class="btn btn-primary">Guardar Producto</button>
             </div>
         </form>
