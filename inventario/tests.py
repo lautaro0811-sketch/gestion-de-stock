@@ -608,6 +608,25 @@ class CatalogoReglasNegocioTest(TestCase):
         # El stock_actual debe mantenerse inalterado
         self.assertEqual(self.prod.stock_actual, 10)
 
+    def test_producto_se_puede_desactivar_desde_edicion(self):
+        edit_url = reverse("producto_editar", kwargs={"pk": self.prod.pk})
+        deactivate_url = reverse("producto_desactivar", kwargs={"pk": self.prod.pk})
+
+        edit_response = self.client.get(edit_url)
+        self.assertEqual(edit_response.status_code, 200)
+        self.assertContains(edit_response, "Desactivar producto")
+        self.assertContains(edit_response, f'href="{deactivate_url}"')
+
+        confirm_response = self.client.get(deactivate_url)
+        self.assertEqual(confirm_response.status_code, 200)
+        self.assertContains(confirm_response, "¿Desactivar producto?")
+
+        response = self.client.post(deactivate_url, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.prod.refresh_from_db()
+        self.assertFalse(self.prod.activo)
+        self.assertTrue(Producto.objects.filter(pk=self.prod.pk).exists())
+
     def test_proteccion_referencial_categoria_con_productos(self):
         with self.assertRaises(ProtectedError):
             self.cat.delete()
@@ -1986,7 +2005,7 @@ class PedidosViewsAndFormsTest(TestCase):
         )
 
         response = self.client.get(reverse("pedido_detalle", kwargs={"pk": pedido.pk}))
-        remito = render_to_string("inventario/pdf/remito.html", {"pedido": pedido})
+        remito = render_to_string("inventario/pdf/remito_v2.html", {"pedido": pedido})
         pdf_response = self.client.get(
             reverse("pedido_pdf", kwargs={"pk": pedido.pk})
         )
@@ -2098,7 +2117,7 @@ class PedidosViewsAndFormsTest(TestCase):
             self.client.get(reverse("pedido_detalle", kwargs={"pk": pedido.pk})),
             "06/10/2026 23:15",
         )
-        remito = render_to_string("inventario/pdf/remito.html", {"pedido": pedido})
+        remito = render_to_string("inventario/pdf/remito_v2.html", {"pedido": pedido})
         self.assertIn("06/10/2026 23:15", remito)
 
     def test_pedido_crear_view_stock_insuficiente_muestra_error(self):
@@ -2154,7 +2173,7 @@ class PedidosViewsAndFormsTest(TestCase):
         self.assertNotContains(response, "Nombre actualizado")
         self.assertNotContains(response, "Producto actualizado")
 
-        remito = render_to_string("inventario/pdf/remito.html", {"pedido": pedido})
+        remito = render_to_string("inventario/pdf/remito_v2.html", {"pedido": pedido})
         self.assertIn("Juan Perez", remito)
         self.assertIn("30111222", remito)
         self.assertIn("1122334455", remito)
@@ -2168,11 +2187,19 @@ class PedidosViewsAndFormsTest(TestCase):
             items_data=[{"producto_id": self.producto.id, "cantidad": 2}],
         )
 
-        response = self.client.get(reverse("pedido_pdf", kwargs={"pk": pedido.pk}))
+        with patch(
+            "inventario.views.render_to_string", wraps=render_to_string
+        ) as render_template:
+            response = self.client.get(
+                reverse("pedido_pdf", kwargs={"pk": pedido.pk})
+            )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Content-Type"], "application/pdf")
         self.assertTrue(response.content.startswith(b"%PDF"))
+        render_template.assert_called_once_with(
+            "inventario/pdf/remito_v2.html", {"pedido": pedido}
+        )
         self.assertIn(
             f'Remito_{pedido.numero_operacion}.pdf', response["Content-Disposition"]
         )

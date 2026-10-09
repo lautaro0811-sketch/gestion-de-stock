@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Remito {{ pedido.numero_operacion }}</title>
+    <style>
+        @page {
+            size: a4 portrait;
+            margin: 1.5cm;
+        }
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 11px;
+            color: #1e293b;
+            line-height: 1.4;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        /* Cabecera institucional */
+        .header-table td {
+            vertical-align: top;
+            padding-bottom: 12px;
+        }
+        .company-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #0f172a;
+        }
+        .company-info {
+            font-size: 10px;
+            color: #64748b;
+            margin-top: 4px;
+        }
+        .doc-card {
+            background-color: #f8fafc;
+            border: 1px solid #cbd5e1;
+            padding: 8px 12px;
+            text-align: right;
+        }
+        .doc-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #0f172a;
+            letter-spacing: 0.5px;
+        }
+        .doc-meta {
+            font-size: 10px;
+            color: #475569;
+            margin-top: 3px;
+        }
+
+        /* Ficha Destinatario */
+        .client-section {
+            border: 1px solid #cbd5e1;
+            background-color: #ffffff;
+            margin: 12px 0 16px 0;
+            padding: 8px 10px;
+        }
+        .client-section-title {
+            font-size: 9px;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: #64748b;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 4px;
+            margin-bottom: 6px;
+        }
+        .client-data td {
+            font-size: 10px;
+            padding: 2px 0;
+        }
+
+        /* Grilla de Productos */
+        .items-table {
+            margin-bottom: 12px;
+        }
+        .items-table th {
+            background-color: #0f172a;
+            color: #ffffff;
+            font-size: 9px;
+            text-transform: uppercase;
+            font-weight: bold;
+            padding: 6px 8px;
+            text-align: left;
+        }
+        .items-table td {
+            padding: 7px 8px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 10px;
+        }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+
+        .total-box {
+            font-size: 13px;
+            font-weight: bold;
+            text-align: right;
+            padding: 10px 8px;
+            border-top: 2px solid #0f172a;
+        }
+
+        /* Pie de página y bloque de conformidad */
+        .footer-table {
+            margin-top: 24px;
+        }
+        .footer-table td {
+            vertical-align: top;
+            padding: 0 8px;
+        }
+        .obs-container {
+            border: 1px solid #e2e8f0;
+            padding: 8px;
+            min-height: 80px;
+            font-size: 9px;
+            color: #475569;
+        }
+        .receipt-container {
+            border: 1px solid #94a3b8;
+            background-color: #f8fafc;
+            padding: 14px 10px;
+        }
+        .receipt-title {
+            font-size: 9px;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: #0f172a;
+            margin-bottom: 4px;
+        }
+        .receipt-text {
+            font-size: 8px;
+            color: #64748b;
+            margin-bottom: 34px;
+        }
+        .sig-line {
+            border-top: 1px solid #475569;
+            margin-top: 30px;
+            text-align: center;
+            font-size: 8px;
+            color: #475569;
+            padding-top: 2px;
+        }
+        .legal-notice {
+            margin-top: 20px;
+            font-size: 8px;
+            color: #94a3b8;
+            text-align: center;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Cabecera -->
+    <table class="header-table">
+        <tr>
+            <td width="55%">
+                <div class="company-name">[Nombre de tu Empresa / Distribuidora]</div>
+                <div class="company-info">
+                    Depósito y Venta Mayorista<br>
+                    Dirección Comercial 123 - Tel: (011) 4589-1000<br>
+                    contacto@tuempresa.com.ar
+                </div>
+            </td>
+            <td width="45%">
+                <div class="doc-card">
+                    <div class="doc-title">REMITO DE ENTREGA</div>
+                    <div class="doc-meta">
+                        <strong>Nº Operación:</strong> {{ pedido.numero_operacion }}<br>
+                        <strong>Fecha de emisión:</strong> {{ pedido.fecha|date:"d/m/Y H:i" }}
+                    </div>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Ficha del Destinatario -->
+    <div class="client-section">
+        <div class="client-section-title">Datos del Destinatario / Punto de Entrega</div>
+        <table class="client-data">
+            <tr>
+                <td width="60%"><strong>Razón Social / Nombre:</strong> {{ pedido.cliente_nombre|default:"Consumidor Final" }}</td>
+                <td width="40%"><strong>{{ pedido.cliente_tipo_documento|default:"Doc" }}:</strong> {{ pedido.cliente_numero_documento|default:"Consumidor Final" }}</td>
+            </tr>
+            <tr>
+                <td><strong>Domicilio de entrega:</strong> Retiro en local / Sin dirección</td>
+                <td><strong>Teléfono de contacto:</strong> {{ pedido.cliente_telefono|default:"No informado" }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Grilla de Productos -->
+    <table class="items-table">
+        <thead>
+            <tr>
+                <th width="12%" class="text-center">CANT.</th>
+                <th width="53%">DETALLE DEL PRODUCTO</th>
+                <th width="17%" class="text-right">P. UNITARIO</th>
+                <th width="18%" class="text-right">SUBTOTAL</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in pedido.items.all %}
+            <tr>
+                <td class="text-center"><strong>{{ item.cantidad }}</strong></td>
+                <td>{{ item.producto_nombre|default:item.producto.nombre }}</td>
+                <td class="text-right">${{ item.precio_unitario|floatformat:2 }}</td>
+                <td class="text-right">${{ item.subtotal|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Total -->
+    <div class="total-box">
+        TOTAL DE LA ENTREGA: ${{ pedido.total|floatformat:2 }}
+    </div>
+
+    <!-- Bloque de Pie: Observaciones y Firma -->
+    <table class="footer-table">
+        <tr>
+            <td width="45%">
+                <div class="obs-container">
+                    <strong>OBSERVACIONES / CONDICIONES:</strong><br>
+                    {% if pedido.observacion %}
+                        {{ pedido.observacion }}
+                    {% else %}
+                        Entrega sujeta a verificación de bultos en destino. Mercadería transportada por cuenta y orden del comprador.
+                    {% endif %}
+                </div>
+            </td>
+            <td width="55%">
+                <div class="receipt-container">
+                    <div class="receipt-title">Conformidad de Recepción</div>
+                    <div class="receipt-text">
+                        Recibí conforme la cantidad de bultos y artículos detallados en el presente comprobante.
+                    </div>
+                    <table>
+                        <tr>
+                            <td width="50%" align="center">
+                                <div class="sig-line">Firma y Sello</div>
+                            </td>
+                            <td width="50%" align="center">
+                                <div class="sig-line">Aclaración y DNI</div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <div class="legal-notice">
+        * Documento interno de control de entrega y traslado de mercadería - No válido como factura fiscal *
+    </div>
+
+</body>
+</html>
