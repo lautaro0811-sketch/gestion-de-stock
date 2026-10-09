@@ -1986,7 +1986,7 @@ class PedidosViewsAndFormsTest(TestCase):
         )
 
         response = self.client.get(reverse("pedido_detalle", kwargs={"pk": pedido.pk}))
-        remito = render_to_string("inventario/pdf/remito.html", {"pedido": pedido})
+        remito = render_to_string("inventario/pdf/remito_v2.html", {"pedido": pedido})
         pdf_response = self.client.get(
             reverse("pedido_pdf", kwargs={"pk": pedido.pk})
         )
@@ -2098,7 +2098,7 @@ class PedidosViewsAndFormsTest(TestCase):
             self.client.get(reverse("pedido_detalle", kwargs={"pk": pedido.pk})),
             "06/10/2026 23:15",
         )
-        remito = render_to_string("inventario/pdf/remito.html", {"pedido": pedido})
+        remito = render_to_string("inventario/pdf/remito_v2.html", {"pedido": pedido})
         self.assertIn("06/10/2026 23:15", remito)
 
     def test_pedido_crear_view_stock_insuficiente_muestra_error(self):
@@ -2154,7 +2154,7 @@ class PedidosViewsAndFormsTest(TestCase):
         self.assertNotContains(response, "Nombre actualizado")
         self.assertNotContains(response, "Producto actualizado")
 
-        remito = render_to_string("inventario/pdf/remito.html", {"pedido": pedido})
+        remito = render_to_string("inventario/pdf/remito_v2.html", {"pedido": pedido})
         self.assertIn("Juan Perez", remito)
         self.assertIn("30111222", remito)
         self.assertIn("1122334455", remito)
@@ -2168,11 +2168,19 @@ class PedidosViewsAndFormsTest(TestCase):
             items_data=[{"producto_id": self.producto.id, "cantidad": 2}],
         )
 
-        response = self.client.get(reverse("pedido_pdf", kwargs={"pk": pedido.pk}))
+        with patch(
+            "inventario.views.render_to_string", wraps=render_to_string
+        ) as render_template:
+            response = self.client.get(
+                reverse("pedido_pdf", kwargs={"pk": pedido.pk})
+            )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Content-Type"], "application/pdf")
         self.assertTrue(response.content.startswith(b"%PDF"))
+        render_template.assert_called_once_with(
+            "inventario/pdf/remito_v2.html", {"pedido": pedido}
+        )
         self.assertIn(
             f'Remito_{pedido.numero_operacion}.pdf', response["Content-Disposition"]
         )

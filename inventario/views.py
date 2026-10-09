@@ -588,10 +588,10 @@ def _pdf_static_link_callback(uri, rel):
 
 def pedido_pdf_view(request, pk):
     pedido = get_object_or_404(
-        Pedido.objects.select_related("cliente").prefetch_related("items__producto"),
+        Pedido.objects.prefetch_related("items__producto"),
         pk=pk,
     )
-    html = render_to_string("inventario/pdf/remito.html", {"pedido": pedido})
+    html = render_to_string("inventario/pdf/remito_v2.html", {"pedido": pedido})
     pdf_buffer = BytesIO()
     result = pisa.CreatePDF(
         html,
