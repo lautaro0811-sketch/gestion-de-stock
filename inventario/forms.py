@@ -6,7 +6,6 @@ from django.utils import timezone
 from .models import (
     Categoria,
     Cliente,
-    Movimiento,
     MovimientoCaja,
     OrdenCompra,
     OrdenCompraItem,
@@ -191,6 +190,16 @@ class ProveedorForm(forms.ModelForm):
 
 
 class MovimientoUnificadoForm(forms.Form):
+    TIPO_CONTEO_FISICO = "CONTEO_FISICO"
+    TIPO_ROTURA_MERMA = "ROTURA_MERMA"
+    TIPO_INGRESO_EXTRAORDINARIO = "INGRESO_EXTRAORDINARIO"
+    PREFIJO_ROTURA_MERMA = "Rotura/merma: "
+    TIPOS_AJUSTE = (
+        (TIPO_CONTEO_FISICO, "Ajuste por Conteo Físico"),
+        (TIPO_ROTURA_MERMA, "Baja por Rotura / Merma"),
+        (TIPO_INGRESO_EXTRAORDINARIO, "Ingreso Extraordinario"),
+    )
+
     producto = forms.ModelChoiceField(
         queryset=Producto.objects.filter(activo=True).order_by("nombre"),
         empty_label="Seleccione un producto...",
@@ -201,21 +210,22 @@ class MovimientoUnificadoForm(forms.Form):
         widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}),
     )
     tipo = forms.ChoiceField(
-        choices=Movimiento.TipoMovimiento.choices,
+        choices=TIPOS_AJUSTE,
         widget=forms.Select(attrs={"class": "form-control"}),
     )
     cantidad = forms.IntegerField(
         min_value=0,
         widget=forms.NumberInput(
-            attrs={"placeholder": "Cantidad o Stock Real", "class": "form-control"}
+            attrs={"placeholder": "Ingrese la cantidad", "class": "form-control"}
         ),
-        help_text="Para Ajuste Físico, ingrese el stock real verificado.",
+        help_text="El significado cambia según el tipo de ajuste seleccionado.",
     )
     observacion = forms.CharField(
         required=False,
+        max_length=255,
         widget=forms.Textarea(
             attrs={
-                "placeholder": "Observaciones opcionales...",
+                "placeholder": "Detalle del ajuste; obligatorio para roturas o mermas.",
                 "rows": 3,
                 "class": "form-control",
             }
@@ -227,22 +237,41 @@ class MovimientoUnificadoForm(forms.Form):
         tipo = cleaned_data.get("tipo")
         producto = cleaned_data.get("producto")
         cantidad = cleaned_data.get("cantidad")
+        observacion = (cleaned_data.get("observacion") or "").strip()
+        cleaned_data["observacion"] = observacion
 
-        if tipo in [Movimiento.TipoMovimiento.ENTRADA, Movimiento.TipoMovimiento.SALIDA]:
+        if tipo in (
+            self.TIPO_ROTURA_MERMA,
+            self.TIPO_INGRESO_EXTRAORDINARIO,
+        ):
             if cantidad is not None and cantidad <= 0:
                 self.add_error(
                     "cantidad",
-                    f"Para movimientos de {tipo.lower().capitalize()}, la cantidad debe ser mayor a cero.",
+                    "La cantidad debe ser mayor a cero para este tipo de ajuste.",
                 )
 
-        if tipo == Movimiento.TipoMovimiento.SALIDA and producto and cantidad:
+        if tipo == self.TIPO_ROTURA_MERMA and not observacion:
+            self.add_error(
+                "observacion",
+                "El motivo es obligatorio para registrar una rotura o merma.",
+            )
+        elif (
+            tipo == self.TIPO_ROTURA_MERMA
+            and len(observacion) + len(self.PREFIJO_ROTURA_MERMA) > 255
+        ):
+            self.add_error(
+                "observacion",
+                "El motivo supera el máximo permitido para el registro de auditoría.",
+            )
+
+        if tipo == self.TIPO_ROTURA_MERMA and producto and cantidad:
             if cantidad > producto.stock_actual:
                 self.add_error(
                     "cantidad",
                     f"Stock insuficiente para '{producto.nombre}'. Hay {producto.stock_actual} u. disponibles y se solicitaron {cantidad} u.",
                 )
 
-        if tipo == Movimiento.TipoMovimiento.AJUSTE and producto and cantidad is not None:
+        if tipo == self.TIPO_CONTEO_FISICO and producto and cantidad is not None:
             if cantidad == producto.stock_actual:
                 self.add_error(
                     "cantidad",

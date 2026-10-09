@@ -8,7 +8,7 @@
     <div class="card-header-flex">
         <h2 class="card-title">Registro Histórico</h2>
         <div class="action-bar">
-            <a href="{% url 'movimiento_crear' %}" class="btn btn-primary">+ Registrar Movimiento</a>
+            <a href="{% url 'movimiento_crear' %}" class="btn btn-primary">+ Ajuste Manual de Inventario</a>
         </div>
     </div>
 
@@ -82,30 +82,30 @@
                     </td>
                     <td class="text-nowrap">
                         {% if m.tipo == 'ENTRADA' %}
-                            <strong style="color: var(--color-success);">+{{ m.cantidad }} u.</strong>
+                            <strong class="text-success">+{{ m.cantidad }} u.</strong>
                         {% elif m.tipo == 'SALIDA' %}
-                            <strong style="color: var(--color-danger);">-{{ m.cantidad }} u.</strong>
+                            <strong class="text-danger">-{{ m.cantidad }} u.</strong>
                         {% else %}
                             <strong>{{ m.cantidad }} u.</strong>
                         {% endif %}
                     </td>
                     <td class="text-nowrap">
                         <span class="text-muted">{{ m.stock_anterior }}</span>
-                        <span style="color: var(--color-text-muted); margin: 0 4px;">→</span>
+                        <span class="text-muted-aux">→</span>
                         <strong>{{ m.stock_posterior }} u.</strong>
                     </td>
                     <td>
                         {{ m.observacion|default:"—" }}
                         {% if m.pedido %}
                             <div>
-                                <a href="{% url 'pedido_detalle' m.pedido.id %}" class="badge badge-info" style="text-decoration: none; margin-top: 4px; display: inline-block;">
+                                <a href="{% url 'pedido_detalle' m.pedido.id %}" class="badge badge-info history-reference">
                                     🧾 Pedido #{{ m.pedido.numero_operacion }}
                                 </a>
                             </div>
                         {% endif %}
                         {% if m.orden_compra %}
                             <div>
-                                <a href="{% url 'orden_compra_detalle' m.orden_compra.id %}" class="badge badge-info" style="text-decoration: none; margin-top: 4px; display: inline-block;">
+                                <a href="{% url 'orden_compra_detalle' m.orden_compra.id %}" class="badge badge-info history-reference">
                                     📥 Orden de Compra #{{ m.orden_compra.numero_operacion }}
                                 </a>
                             </div>

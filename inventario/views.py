@@ -323,9 +323,7 @@ def proveedor_desactivar(request, pk):
 # --- MOVIMIENTOS ---
 @transaction.atomic
 def movimiento_crear(request):
-    """Vista unificada para registrar Entrada, Salida o Ajuste."""
-    
-    """Vista unificada para registrar Entrada, Salida o Ajuste."""
+    """Registra ajustes manuales de inventario con auditoría."""
     producto_id_param = request.GET.get("producto")
 
     if request.method == "POST":
@@ -344,25 +342,7 @@ def movimiento_crear(request):
             usuario = request.user if request.user.is_authenticated else None
 
             try:
-                if tipo == "ENTRADA":
-                    registrar_entrada(
-                        producto.id,
-                        cantidad,
-                        observacion,
-                        fecha=fecha_completa,
-                        usuario=usuario,
-                    )
-                    messages.success(request, f"Entrada registrada: +{cantidad} u. de '{producto.nombre}'.")
-                elif tipo == "SALIDA":
-                    registrar_salida(
-                        producto.id,
-                        cantidad,
-                        observacion,
-                        fecha=fecha_completa,
-                        usuario=usuario,
-                    )
-                    messages.success(request, f"Salida registrada: -{cantidad} u. de '{producto.nombre}'.")
-                elif tipo == "AJUSTE":
+                if tipo == MovimientoUnificadoForm.TIPO_CONTEO_FISICO:
                     registrar_ajuste(
                         producto.id,
                         cantidad,
@@ -370,7 +350,34 @@ def movimiento_crear(request):
                         fecha=fecha_completa,
                         usuario=usuario,
                     )
-                    messages.success(request, f"Stock de '{producto.nombre}' ajustado a {cantidad} u.")
+                    messages.success(
+                        request,
+                        f"Stock de '{producto.nombre}' ajustado al conteo de {cantidad} u.",
+                    )
+                elif tipo == MovimientoUnificadoForm.TIPO_ROTURA_MERMA:
+                    registrar_salida(
+                        producto.id,
+                        cantidad,
+                        f"{MovimientoUnificadoForm.PREFIJO_ROTURA_MERMA}{observacion}",
+                        fecha=fecha_completa,
+                        usuario=usuario,
+                    )
+                    messages.success(
+                        request,
+                        f"Baja por rotura o merma registrada: -{cantidad} u. de '{producto.nombre}'.",
+                    )
+                elif tipo == MovimientoUnificadoForm.TIPO_INGRESO_EXTRAORDINARIO:
+                    registrar_entrada(
+                        producto.id,
+                        cantidad,
+                        observacion,
+                        fecha=fecha_completa,
+                        usuario=usuario,
+                    )
+                    messages.success(
+                        request,
+                        f"Ingreso extraordinario registrado: +{cantidad} u. de '{producto.nombre}'.",
+                    )
 
                 return redirect("movimiento_historial")
 
@@ -394,7 +401,14 @@ def movimiento_crear(request):
             initial_data["tipo"] = tipo_param
         form = MovimientoUnificadoForm(initial=initial_data)
 
-    return render(request, "inventario/movimiento_form.html", {"form": form})
+    productos_stock = dict(
+        Producto.objects.filter(activo=True).values_list("id", "stock_actual")
+    )
+    return render(
+        request,
+        "inventario/movimiento_form.html",
+        {"form": form, "productos_stock": productos_stock},
+    )
 
 
 def movimiento_historial(request):
@@ -794,7 +808,7 @@ def orden_compra_cancelar(request, pk):
 
 @transaction.atomic
 def export_csv(request):
-    """Export the product list as CSV respecting current filters and ordering."""
+    """Export an inventory audit and replenishment worksheet as Excel-friendly CSV."""
     query = request.GET.get("q", "").strip()
     categoria_id = request.GET.get("categoria", "").strip()
     solo_stock_bajo = request.GET.get("stock_bajo") == "1"
@@ -819,21 +833,33 @@ def export_csv(request):
         productos_qs = productos_qs.filter(categoria_id=categoria_id)
     if solo_stock_bajo:
         productos_qs = productos_qs.filter(stock_actual__lte=F("stock_minimo"))
-    response = HttpResponse(content_type="text/csv")
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = "attachment; filename=productos.csv"
-    writer = csv.writer(response)
-    writer.writerow(["ID", "Nombre", "Descripción", "Categoría", "Precio Unitario de Venta", "Stock Mínimo", "Stock Actual", "Estado"])
+    response.write("\ufeff")
+    writer = csv.writer(response, delimiter=";")
+    writer.writerow([
+        "ID",
+        "Categoría",
+        "Producto",
+        "Stock Actual",
+        "Stock Mínimo",
+        "Estado",
+        "Precio Unitario ($)",
+        "Valorización de Stock ($)",
+        "Conteo Físico (Verificación)",
+    ])
     for p in productos_qs:
         estado = "Sin Stock" if p.stock_actual == 0 else ("Stock Bajo" if p.stock_bajo else "Normal")
         writer.writerow([
             p.id,
-            p.nombre,
-            p.descripcion,
             p.categoria.nombre if p.categoria else "",
-            f"${p.precio_unitario:.2f}",
-            p.stock_minimo,
+            p.nombre,
             p.stock_actual,
+            p.stock_minimo,
             estado,
+            f"{p.precio_unitario:.2f}",
+            f"{p.precio_unitario * p.stock_actual:.2f}",
+            "",
         ])
     return response
 
