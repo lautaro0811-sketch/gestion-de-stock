@@ -9,7 +9,7 @@ from django.contrib.staticfiles import finders
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import connection, transaction
-from django.db.models import F, Q, Count, Sum
+from django.db.models import F, Q, Count, Min, Sum
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
@@ -843,7 +843,60 @@ def caja_dashboard(request):
     """Dashboard de caja con saldo calculado dinámicamente."""
     from decimal import Decimal
 
-    agregados = MovimientoCaja.objects.aggregate(
+    periodo = (request.GET.get("periodo") or "todo").strip().lower()
+    mes = (request.GET.get("mes") or "").strip()
+    anio = (request.GET.get("anio") or "").strip()
+    tipo = (request.GET.get("tipo") or "TODOS").strip().upper()
+
+    valid_periodos = {"todo", "mes_actual", "anio_actual", "mes_especifico"}
+    if periodo not in valid_periodos:
+        periodo = "todo"
+
+    if tipo not in {"TODOS", "INGRESO", "EGRESO"}:
+        tipo = "TODOS"
+
+    mes_num = None
+    anio_num = None
+    hoy = timezone.localdate()
+    meses = [
+        (1, "Enero"), (2, "Febrero"), (3, "Marzo"), (4, "Abril"),
+        (5, "Mayo"), (6, "Junio"), (7, "Julio"), (8, "Agosto"),
+        (9, "Septiembre"), (10, "Octubre"), (11, "Noviembre"), (12, "Diciembre"),
+    ]
+    primer_movimiento = MovimientoCaja.objects.aggregate(primer_fecha=Min("fecha"))["primer_fecha"]
+    anio_inicial = min(primer_movimiento.year, hoy.year) if primer_movimiento else hoy.year - 4
+    anios = list(range(hoy.year, anio_inicial - 1, -1))
+
+    if periodo == "mes_especifico":
+        try:
+            mes_num = int(mes)
+            anio_num = int(anio)
+        except (TypeError, ValueError):
+            periodo = "todo"
+        else:
+            if not (1 <= mes_num <= 12):
+                periodo = "todo"
+
+    queryset_periodo = MovimientoCaja.objects.select_related("pedido", "orden_compra")
+    if periodo != "todo":
+        if periodo == "mes_actual":
+            inicio = timezone.make_aware(datetime(hoy.year, hoy.month, 1, 0, 0, 0), timezone.get_current_timezone())
+            if hoy.month == 12:
+                fin = timezone.make_aware(datetime(hoy.year + 1, 1, 1, 0, 0, 0), timezone.get_current_timezone())
+            else:
+                fin = timezone.make_aware(datetime(hoy.year, hoy.month + 1, 1, 0, 0, 0), timezone.get_current_timezone())
+        elif periodo == "anio_actual":
+            inicio = timezone.make_aware(datetime(hoy.year, 1, 1, 0, 0, 0), timezone.get_current_timezone())
+            fin = timezone.make_aware(datetime(hoy.year + 1, 1, 1, 0, 0, 0), timezone.get_current_timezone())
+        else:
+            inicio = timezone.make_aware(datetime(anio_num, mes_num, 1, 0, 0, 0), timezone.get_current_timezone())
+            if mes_num == 12:
+                fin = timezone.make_aware(datetime(anio_num + 1, 1, 1, 0, 0, 0), timezone.get_current_timezone())
+            else:
+                fin = timezone.make_aware(datetime(anio_num, mes_num + 1, 1, 0, 0, 0), timezone.get_current_timezone())
+        queryset_periodo = queryset_periodo.filter(fecha__gte=inicio, fecha__lt=fin)
+
+    agregados = queryset_periodo.aggregate(
         total_ingresos=Sum("monto", filter=Q(tipo="INGRESO")),
         total_egresos=Sum("monto", filter=Q(tipo="EGRESO")),
     )
@@ -852,9 +905,11 @@ def caja_dashboard(request):
     total_egresos = agregados["total_egresos"] or Decimal("0.00")
     saldo = total_ingresos - total_egresos
 
-    movimientos = MovimientoCaja.objects.select_related("pedido").all()
+    queryset_tabla = queryset_periodo
+    if tipo in {"INGRESO", "EGRESO"}:
+        queryset_tabla = queryset_tabla.filter(tipo=tipo)
 
-    paginator = Paginator(movimientos, 20)
+    paginator = Paginator(queryset_tabla.order_by("-fecha", "-id"), 20)
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
 
@@ -867,6 +922,13 @@ def caja_dashboard(request):
             "saldo": saldo,
             "movimientos": page_obj,
             "page_obj": page_obj,
+            "periodo": periodo,
+            "mes": str(mes_num) if mes_num is not None else "",
+            "anio": str(anio_num) if anio_num is not None else "",
+            "tipo": tipo,
+            "mostrar_saldo_periodo": periodo != "todo",
+            "meses": meses,
+            "anios": anios,
         },
     )
 
